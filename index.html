@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+  <meta charset="UTF-8">
+  <title>Plug N' Play - BroOS Bridge</title>
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; margin-top: 50px; background: #222; color: #fff; }
+    button { padding: 10px 20px; font-size: 16px; margin: 10px; cursor: pointer; }
+    input { padding: 10px; font-size: 16px; width: 250px; }
+  </style>
+</head>
+<body>
+
+  <h1>Plug N' Play Bridge 🌐</h1>
+  <p>Conectează plăcuța Arduino la laptop și apasă pe buton:</p>
+  
+  <button id="connectBtn">Conectează Arduino 🔌</button>
+  <br><br>
+  
+  <input type="text" id="textInput" placeholder="Scrie text pt. File Manager...">
+  <button id="sendBtn">Trimite către BroOS 📤</button>
+
+  <script>
+    let port;
+    let writer;
+
+    // 1. Conectare la portul USB prin Web Serial API
+    document.getElementById('connectBtn').addEventListener('click', async () => {
+      try {
+        port = await navigator.serial.requestPort();
+        await port.open({ baudRate: 9600 });
+        
+        const textEncoder = new TextEncoderStream();
+        textEncoder.readable.pipeTo(port.writable);
+        writer = textEncoder.writable.getWriter();
+        
+        alert('Conectat cu succes la BroOS!');
+      } catch (err) {
+        alert('Eroare la conectare: ' + err);
+      }
+    });
+
+    // 2. Trimiterea datelor către Arduino
+    document.getElementById('sendBtn').addEventListener('click', async () => {
+      const text = document.getElementById('textInput').value;
+      if (writer && text) {
+        await writer.write(text + '\n'); // Trimitem textul urmat de linie nouă
+        document.getElementById('textInput').value = '';
+      } else {
+        alert('Mai întâi conectează plăcuța sau introdu un text!');
+      }
+    });
+  </script>
+
+</body>
+</html>
