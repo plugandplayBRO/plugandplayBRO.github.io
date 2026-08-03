@@ -2,55 +2,95 @@
 <html lang="ro">
 <head>
   <meta charset="UTF-8">
-  <title>Plug N' Play - BroOS Bridge</title>
+  <title>BroOS Multiplayer 🎮</title>
   <style>
-    body { font-family: Arial, sans-serif; text-align: center; margin-top: 50px; background: #222; color: #fff; }
-    button { padding: 10px 20px; font-size: 16px; margin: 10px; cursor: pointer; }
-    input { padding: 10px; font-size: 16px; width: 250px; }
+    body { font-family: sans-serif; padding: 20px; line-height: 1.6; }
+    input, button { padding: 8px; margin: 4px 0; }
+    .card { border: 1px solid #ccc; padding: 15px; border-radius: 8px; margin-bottom: 15px; }
   </style>
 </head>
 <body>
 
-  <h1>Plug N' Play Bridge 🌐</h1>
-  <p>Conectează plăcuța Arduino la laptop și apasă pe buton:</p>
-  
-  <button id="connectBtn">Conectează Arduino 🔌</button>
-  <br><br>
-  
-  <input type="text" id="textInput" placeholder="Scrie text pt. File Manager...">
-  <button id="sendBtn">Trimite către BroOS 📤</button>
+  <h2>BroOS Multiplayer Controller 🕹️</h2>
 
-  <script>
-    let port;
-    let writer;
+  <div class="card">
+    <h3>1. Conexiune Arduino 🔌</h3>
+    <button id="connect-btn">Conectează Arduino</button>
+    <p id="status">Stare: Deconectat 🔴</p>
+  </div>
 
-    // 1. Conectare la portul USB prin Web Serial API
-    document.getElementById('connectBtn').addEventListener('click', async () => {
+  <div class="card">
+    <h3>2. Rețea Multiplayer 🌐</h3>
+    <label>ID-ul tău (ex: BroOS_1):</label><br>
+    <input type="text" id="user-id" placeholder="Introdu Nume/ID-ul tău"><br><br>
+
+    <label>ID-ul Destinatarului (ex: BroOS_2):</label><br>
+    <input type="text" id="target-id" placeholder="Cui îi trimiți mesajul?"><br><br>
+
+    <input type="text" id="msg-input" placeholder="Scrie comanda / mesajul...">
+    <button id="send-btn">Trimite 📤</button>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+    // Configurația ta Firebase 🔑
+    const firebaseConfig = {
+      apiKey: "AIzaSyCkrOZEsnzArIOw90wLq2yFNfNGfvk5C1A",
+      authDomain: "broos-network.firebaseapp.com",
+      projectId: "broos-network",
+      storageBucket: "broos-network.firebasestorage.app",
+      messagingSenderId: "592892049153",
+      appId: "1:592892049153:web:64823347938791559e4d00"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const database = getDatabase(app);
+
+    let port, writer;
+
+    // Conectare la cablul USB (Arduino) 📟
+    document.getElementById('connect-btn').addEventListener('click', async () => {
       try {
         port = await navigator.serial.requestPort();
         await port.open({ baudRate: 9600 });
-        
-        const textEncoder = new TextEncoderStream();
-        textEncoder.readable.pipeTo(port.writable);
-        writer = textEncoder.writable.getWriter();
-        
-        alert('Conectat cu succes la BroOS!');
+        writer = port.writable.getWriter();
+        document.getElementById('status').innerText = "Stare: Conectat la Arduino! 🟢";
       } catch (err) {
-        alert('Eroare la conectare: ' + err);
+        document.getElementById('status').innerText = "Eroare la conectare: " + err;
       }
     });
 
-    // 2. Trimiterea datelor către Arduino
-    document.getElementById('sendBtn').addEventListener('click', async () => {
-      const text = document.getElementById('textInput').value;
-      if (writer && text) {
-        await writer.write(text + '\n'); // Trimitem textul urmat de linie nouă
-        document.getElementById('textInput').value = '';
-      } else {
-        alert('Mai întâi conectează plăcuța sau introdu un text!');
+    // Ascultă mesajele primite din Cloud 👂
+    document.getElementById('user-id').addEventListener('change', (e) => {
+      const myId = e.target.value.trim();
+      if (!myId) return;
+
+      const myRef = ref(database, 'messages/' + myId);
+      onValue(myRef, async (snapshot) => {
+        const data = snapshot.val();
+        if (data && writer) {
+          // Trimite textul direct pe USB către Arduino ⚡
+          const encoder = new TextEncoder();
+          await writer.write(encoder.encode(data.text + "\n"));
+        }
+      });
+    });
+
+    // Trimite un mesaj către alt utilizator 📤
+    document.getElementById('send-btn').addEventListener('click', () => {
+      const targetId = document.getElementById('target-id').value.trim();
+      const text = document.getElementById('msg-input').value.trim();
+
+      if (targetId && text) {
+        set(ref(database, 'messages/' + targetId), {
+          text: text,
+          timestamp: Date.now()
+        });
+        document.getElementById('msg-input').value = '';
       }
     });
   </script>
-
 </body>
 </html>
