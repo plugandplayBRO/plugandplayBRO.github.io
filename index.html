@@ -2,40 +2,45 @@
 <html lang="ro">
 <head>
   <meta charset="UTF-8">
-  <title>BroOS Multiplayer 🎮</title>
+  <title>Fight Bros Multiplayer 🥊</title>
   <style>
-    body { font-family: sans-serif; padding: 20px; line-height: 1.6; }
-    input, button { padding: 8px; margin: 4px 0; }
-    .card { border: 1px solid #ccc; padding: 15px; border-radius: 8px; margin-bottom: 15px; }
+    body { font-family: sans-serif; text-align: center; background: #222; color: #fff; }
+    #game-arena {
+      width: 600px; height: 300px; border: 4px solid #fff;
+      margin: 20px auto; position: relative; background: #333; overflow: hidden;
+    }
+    .player {
+      width: 40px; height: 40px; position: absolute; bottom: 20px;
+      border-radius: 4px; transition: left 0.1s ease;
+    }
+    #p1 { background: #ff4757; left: 50px; }
+    #p2 { background: #2ed573; right: 50px; }
+    
+    /* Efectul de clipire când își ia damage ⚡ */
+    .damage-blink {
+      animation: blink 0.15s infinite;
+    }
+    @keyframes blink {
+      0% { opacity: 1; }
+      50% { opacity: 0.2; }
+      100% { opacity: 1; }
+    }
   </style>
 </head>
 <body>
 
-  <h2>BroOS Multiplayer Controller 🕹️</h2>
-
-  <div class="card">
-    <h3>1. Conexiune Arduino 🔌</h3>
-    <button id="connect-btn">Conectează Arduino</button>
-    <p id="status">Stare: Deconectat 🔴</p>
+  <h2>Fight Bros 🥊</h2>
+  <div id="game-arena">
+    <div id="p1" class="player"></div>
+    <div id="p2" class="player"></div>
   </div>
 
-  <div class="card">
-    <h3>2. Rețea Multiplayer 🌐</h3>
-    <label>ID-ul tău (ex: BroOS_1):</label><br>
-    <input type="text" id="user-id" placeholder="Introdu Nume/ID-ul tău"><br><br>
-
-    <label>ID-ul Destinatarului (ex: BroOS_2):</label><br>
-    <input type="text" id="target-id" placeholder="Cui îi trimiți mesajul?"><br><br>
-
-    <input type="text" id="msg-input" placeholder="Scrie comanda / mesajul...">
-    <button id="send-btn">Trimite 📤</button>
-  </div>
+  <p>Comenzi: <strong>DASH</strong> 💨 | <strong>ATTACK</strong> ⚔️</p>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-    // Configurația ta Firebase 🔑
     const firebaseConfig = {
       apiKey: "AIzaSyCkrOZEsnzArIOw90wLq2yFNfNGfvk5C1A",
       authDomain: "broos-network.firebaseapp.com",
@@ -46,49 +51,41 @@
     };
 
     const app = initializeApp(firebaseConfig);
-    const database = getDatabase(app);
+    const db = getDatabase(app);
 
-    let port, writer;
+    const p1El = document.getElementById('p1');
+    const p2El = document.getElementById('p2');
 
-    // Conectare la cablul USB (Arduino) 📟
-    document.getElementById('connect-btn').addEventListener('click', async () => {
-      try {
-        port = await navigator.serial.requestPort();
-        await port.open({ baudRate: 9600 });
-        writer = port.writable.getWriter();
-        document.getElementById('status').innerText = "Stare: Conectat la Arduino! 🟢";
-      } catch (err) {
-        document.getElementById('status').innerText = "Eroare la conectare: " + err;
+    // Funcție pentru declanșarea efectului de clipire la damage ⚡
+    function triggerDamageEffect(playerElement) {
+      playerElement.classList.add('damage-blink');
+      setTimeout(() => {
+        playerElement.classList.remove('damage-blink');
+      }, 500); // Clipește timp de 0.5 secunde
+    }
+
+    // Ascultăm acțiunile din Firebase
+    onValue(ref(db, 'fight_bros/actions'), (snapshot) => {
+      const data = snapshot.val();
+      if (!data) return;
+
+      if (data.type === 'ATTACK') {
+        // Dacă jucătorul atacat este în rază, clipește
+        const targetEl = data.target === 'p1' ? p1El : p2El;
+        triggerDamageEffect(targetEl);
       }
     });
 
-    // Ascultă mesajele primite din Cloud 👂
-    document.getElementById('user-id').addEventListener('change', (e) => {
-      const myId = e.target.value.trim();
-      if (!myId) return;
-
-      const myRef = ref(database, 'messages/' + myId);
-      onValue(myRef, async (snapshot) => {
-        const data = snapshot.val();
-        if (data && writer) {
-          // Trimite textul direct pe USB către Arduino ⚡
-          const encoder = new TextEncoder();
-          await writer.write(encoder.encode(data.text + "\n"));
-        }
-      });
-    });
-
-    // Trimite un mesaj către alt utilizator 📤
-    document.getElementById('send-btn').addEventListener('click', () => {
-      const targetId = document.getElementById('target-id').value.trim();
-      const text = document.getElementById('msg-input').value.trim();
-
-      if (targetId && text) {
-        set(ref(database, 'messages/' + targetId), {
-          text: text,
-          timestamp: Date.now()
+    // Exemplu de trimitere a unei acțiuni (poate fi legat de taste sau Serial Web/Arduino)
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'a') {
+        // Trimitere Atac către P2
+        set(ref(db, 'fight_bros/actions'), {
+          sender: 'p1',
+          target: 'p2',
+          type: 'ATTACK',
+          time: Date.now()
         });
-        document.getElementById('msg-input').value = '';
       }
     });
   </script>
