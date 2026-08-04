@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+\<!DOCTYPE html>
 <html lang="ro">
 <head>
   <meta charset="UTF-8">
@@ -80,17 +80,51 @@
       document.getElementById(screenId).classList.remove('hidden');
     }
 
-    // Web Serial 🔌
+    // Web Serial 🔌 - Conectare și Citire Date de la Arduino
     document.getElementById('btn-connect').addEventListener('click', async () => {
       try {
         port = await navigator.serial.requestPort();
         await port.open({ baudRate: 9600 });
         writer = port.writable.getWriter();
         document.getElementById('serial-status').innerText = "Stare Arduino: Conectat 🟢";
+        readSerial(); // Pornim ascultarea datelor trimise de Arduino
       } catch (err) {
         document.getElementById('serial-status').innerText = "Eroare: " + err;
       }
     });
+
+    async function readSerial() {
+      const textDecoder = new TextDecoderStream();
+      port.readable.pipeTo(textDecoder.writable);
+      const reader = textDecoder.readable.getReader();
+      let buffer = "";
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += value;
+        let lines = buffer.split("\n");
+        buffer = lines.pop();
+
+        for (let line of lines) {
+          const command = line.trim();
+          handleArduinoCommand(command);
+        }
+      }
+    }
+
+    // Procesare Comenzi Arduino 📟
+    function handleArduinoCommand(cmd) {
+      if (!currentUser) return;
+
+      if (cmd === "DASH") {
+        set(ref(db, 'fight_bros/actions'), { user: currentUser, type: 'DASH', time: Date.now() });
+      } else if (cmd === "ATTACK") {
+        set(ref(db, 'fight_bros/actions'), { user: currentUser, type: 'ATTACK', time: Date.now() });
+      } else if (cmd === "JUMP") {
+        set(ref(db, 'dino/jump'), { user: currentUser, time: Date.now() });
+      }
+    }
 
     // Autentificare 🚀
     document.getElementById('btn-login').addEventListener('click', () => {
@@ -122,7 +156,8 @@
           <div id="p1-fighter" class="fighter"></div>
           <div id="p2-fighter" class="fighter"></div>
         </div>
-        <p>Comenzi Test: Tasta <strong>A</strong> (Dash 💨) | Tasta <strong>S</strong> (Atac ⚔️)</p>
+        <p>Comenzi Arduino: <code>DASH</code> 💨 | <code>ATTACK</code> ⚔️</p>
+        <p>Tastatură test: <strong>A</strong> (Dash) | <strong>S</strong> (Atac)</p>
       `;
       showScreen('screen-app');
       initFightBros();
@@ -135,7 +170,8 @@
           <div id="dino-p1" class="dino-sprite"></div>
           <div id="dino-p2" class="dino-sprite"></div>
         </div>
-        <p>Comenzi Test: Apasă tasta <strong>Space</strong> pentru Săritură 🦘</p>
+        <p>Comandă Arduino: <code>JUMP</code> 🦘</p>
+        <p>Tastatură test: <strong>Space</strong></p>
       `;
       showScreen('screen-app');
       initDino();
@@ -182,11 +218,8 @@
       });
 
       window.onkeydown = (e) => {
-        if (e.key === 'a' || e.key === 'A') {
-          set(ref(db, 'fight_bros/actions'), { user: currentUser, type: 'DASH', time: Date.now() });
-        } else if (e.key === 's' || e.key === 'S') {
-          set(ref(db, 'fight_bros/actions'), { user: currentUser, type: 'ATTACK', time: Date.now() });
-        }
+        if (e.key === 'a' || e.key === 'A') handleArduinoCommand("DASH");
+        if (e.key === 's' || e.key === 'S') handleArduinoCommand("ATTACK");
       };
     }
 
@@ -204,9 +237,7 @@
       });
 
       window.onkeydown = (e) => {
-        if (e.code === 'Space') {
-          set(ref(db, 'dino/jump'), { user: currentUser, time: Date.now() });
-        }
+        if (e.code === 'Space') handleArduinoCommand("JUMP");
       };
     }
   </script>
