@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>BroOS - Web Dashboard & Control Center</title>
+  <title>BroOS - Web Hub & Control Center</title>
   <style>
     :root {
       --bg-color: #0b0f19;
@@ -139,6 +139,11 @@
       font-weight: bold;
       cursor: pointer;
       transition: background 0.2s;
+      margin-bottom: 8px;
+      text-decoration: none;
+      display: inline-block;
+      text-align: center;
+      box-sizing: border-box;
     }
 
     .btn:hover {
@@ -153,6 +158,11 @@
       background-color: #059669;
     }
 
+    .btn-row {
+      display: flex;
+      gap: 8px;
+    }
+
     .terminal {
       background-color: #050811;
       border: 1px solid var(--border);
@@ -160,7 +170,7 @@
       font-family: 'Consolas', 'Courier New', monospace;
       padding: 12px;
       border-radius: 8px;
-      height: 140px;
+      height: 120px;
       overflow-y: auto;
       margin-bottom: 10px;
       font-size: 0.9rem;
@@ -176,7 +186,7 @@
 <body>
 
   <header>
-    <h1>💻 BroOS Center</h1>
+    <h1>💻 BroOS Hub Central</h1>
     <div class="status-container">
       <div class="badge">
         <span id="statusDot" class="dot"></span>
@@ -188,26 +198,46 @@
 
   <div class="grid">
 
-    <!-- CONTROLLER JOCURI -->
+    <!-- 1. ACCES JOCURI SEPARATE -->
     <div class="card">
-      <h2>🎮 Control Jocuri (Player 2)</h2>
-      <button id="dinoJumpBtn" class="btn btn-green" style="margin-bottom: 15px;">🦘 SĂRITURĂ DINO (SPACE)</button>
-      <div class="controls-hint">
-        <strong>Tastatură FightBros:</strong><br>
-        • <strong>W</strong> = Săritură | <strong>A</strong> = Stânga | <strong>D</strong> = Dreapta<br>
-        • <strong>J</strong> = Atac | <strong>K</strong> = Super Atac
+      <h2>🎮 Pagini Jocuri Separate</h2>
+      <div class="controls-hint" style="margin-bottom: 12px;">
+        Accesează fișierele tale dedicate pentru jocuri pe ecran mare:
+      </div>
+      <a href="dino.html" class="btn btn-green">🦖 Deschide Dino.html</a>
+      <a href="fightbros.html" class="btn" style="background-color: #8b5cf6;">⚔️ Deschide FightBros.html</a>
+    </div>
+
+    <!-- 2. CONTROL DIRECT DINO & FIGHT (BRIDGE) -->
+    <div class="card">
+      <h2>🕹️ Comenzi Rapide Arduino</h2>
+      <button class="btn btn-green" onclick="sendCommand('NET_IN:DINO2_JUMP')">🦘 Săritură Dino (P2)</button>
+      <div class="btn-row">
+        <button class="btn" onclick="sendCommand('NET_IN:P2_LEFT')">⬅️ P2 Stânga</button>
+        <button class="btn" onclick="sendCommand('NET_IN:P2_RIGHT')">P2 Dreapta ➡️</button>
+      </div>
+      <button class="btn" style="background-color: #f59e0b;" onclick="sendCommand('NET_IN:P2_ATK')">💥 Atac FightBros (P2)</button>
+    </div>
+
+    <!-- 3. GALERIE FOTO -->
+    <div class="card">
+      <h2>🖼️ Galerie Foto BroOS</h2>
+      <button class="btn btn-green" onclick="sendCommand('MODE:GALLERY')">Deschide Galeria pe LCD</button>
+      <div class="btn-row">
+        <button class="btn" onclick="sendCommand('GAL:PREV')">⬅️ Înapoi</button>
+        <button class="btn" onclick="sendCommand('GAL:NEXT')">Înainte ➡️</button>
       </div>
     </div>
 
-    <!-- FILE MANAGER -->
+    <!-- 4. FILE MANAGER -->
     <div class="card">
-      <h2>📁 Trimite Fișier (FileManager)</h2>
-      <textarea id="fileText" placeholder="Introduceți textul fișierului (max 4 linii)..."></textarea>
+      <h2>📁 Trimite Fișier Text</h2>
+      <textarea id="fileText" placeholder="Introduceți textul fișierului..."></textarea>
       <input type="file" id="fileInput" accept=".txt">
-      <button id="sendFileBtn" class="btn">📤 Trimite Fișier pe Ecran</button>
+      <button id="sendFileBtn" class="btn">📤 Trimite pe LCD</button>
     </div>
 
-    <!-- BRO CHAT -->
+    <!-- 5. BRO CHAT -->
     <div class="card">
       <h2>💬 Console BroChat</h2>
       <div id="chatTerminal" class="terminal"></div>
@@ -226,19 +256,17 @@
     const statusDot = document.getElementById('statusDot');
     const statusText = document.getElementById('statusText');
 
-    const dinoJumpBtn = document.getElementById('dinoJumpBtn');
-    const sendFileBtn = document.getElementById('sendFileBtn');
     const fileText = document.getElementById('fileText');
     const fileInput = document.getElementById('fileInput');
+    const sendFileBtn = document.getElementById('sendFileBtn');
 
     const chatTerminal = document.getElementById('chatTerminal');
     const chatInput = document.getElementById('chatInput');
     const sendChatBtn = document.getElementById('sendChatBtn');
 
-    // CONECTARE DIRECTĂ USB VIA WEB SERIAL
     connectBtn.onclick = async () => {
       if (!("serial" in navigator)) {
-        alert("Browser-ul tău nu suportă Web Serial API! Deschide pagina în Google Chrome sau Microsoft Edge pe PC.");
+        alert("Browser-ul tău nu suportă Web Serial API! Folosește Google Chrome sau Microsoft Edge.");
         return;
       }
 
@@ -261,14 +289,12 @@
       }
     };
 
-    // CITIRE SERIALĂ
     async function readSerialData() {
       const textDecoder = new TextDecoderStream();
-      const readableStreamClosed = port.readable.pipeTo(textDecoder.writable);
+      port.readable.pipeTo(textDecoder.writable);
       const reader = textDecoder.readable.getReader();
 
       let buffer = "";
-
       try {
         while (true) {
           const { value, done } = await reader.read();
@@ -293,17 +319,15 @@
       }
     }
 
-    // TRIMITERE COMANDĂ
     async function sendCommand(cmd) {
       if (!isConnected || !writer) {
-        alert("Apasă mai întâi pe butonul 'Conectează USB'!");
+        alert("Apasă mai întâi pe butonul 'Conectează USB' din partea de sus!");
         return;
       }
       const encoder = new TextEncoder();
       await writer.write(encoder.encode(cmd + "\n"));
     }
 
-    // FILE MANAGER
     fileInput.onchange = (e) => {
       const file = e.target.files[0];
       if (file) {
@@ -334,7 +358,6 @@
       alert("Fișier trimis pe ecranul BroOS!");
     };
 
-    // CHAT
     sendChatBtn.onclick = () => {
       const msg = chatInput.value.trim();
       if (msg) {
@@ -348,20 +371,6 @@
     };
 
     chatInput.onkeypress = (e) => { if (e.key === 'Enter') sendChatBtn.click(); };
-
-    // CONTROALE JOCURI
-    dinoJumpBtn.onclick = () => { sendCommand("DINO2:JUMP"); };
-
-    window.onkeydown = (e) => {
-      if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA') return;
-
-      if (e.code === 'Space') { e.preventDefault(); sendCommand("DINO2:JUMP"); }
-      else if (e.key === 'a' || e.key === 'A') sendCommand("OPP:LEFT");
-      else if (e.key === 'd' || e.key === 'D') sendCommand("OPP:RIGHT");
-      else if (e.key === 'w' || e.key === 'W') sendCommand("OPP:JUMP");
-      else if (e.key === 'j' || e.key === 'J') sendCommand("OPP:ATK");
-      else if (e.key === 'k' || e.key === 'K') sendCommand("OPP:SUPER");
-    };
   </script>
 </body>
 </html>
