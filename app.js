@@ -1,73 +1,62 @@
 let port;
 let writer;
-let reader;
+let peer;
+let connections = [];
 
-// Conectare la Arduino prin portul Serial din Browser (Chrome/Edge/Brave)
+// 1. Conectare BroOS fizic prin USB
 document.getElementById('btnConnect').addEventListener('click', async () => {
   try {
-    // Deschide fereastra de selectare a portului COM/USB
     port = await navigator.serial.requestPort();
     await port.open({ baudRate: 9600 });
-    
     writer = port.writable.getWriter();
-    
-    document.getElementById('statusText').innerHTML = "Stare: <b style='color:#00e676'>Conectat la BroOS!</b>";
-    readLoop(); // Pornește citirea datelor de la Arduino
+    alert("BroOS Conectat la Laptop!");
+    readLoop();
   } catch (err) {
-    alert("Nu s-a putut conecta la Arduino: " + err);
+    alert("Eroare conectare USB: " + err);
   }
 });
 
-// Trimite comenzi text către Arduino
-async function sendData(text) {
-  if (!writer) {
-    alert("Mai întâi conectează Arduino prin USB folosind butonul albastru!");
-    return;
-  }
-  const encoder = new TextEncoder();
-  await writer.write(encoder.encode(text + "\n"));
+// 2. Creare Cameră Online (Host)
+function createOnlineRoom(roomCode) {
+  peer = new Peer(roomCode);
+  peer.on('open', (id) => {
+    alert("Camera a fost creată! Codul tău este: " + id);
+  });
+  peer.on('connection', (conn) => {
+    connections.push(conn);
+    conn.on('data', (data) => {
+      console.log("Comandă primită de la un prieten prin internet:", data);
+      // Aici miști dinozaurul/caracterul prietenului pe ecranul tău!
+    });
+  });
 }
 
-// Lansează o aplicație pe ecranul BroOS
-function launchApp(appName) {
-  sendData("CMD:" + appName);
+// 3. Intrare în Camera unui prieten (Client)
+function joinOnlineRoom(hostRoomCode) {
+  peer = new Peer();
+  peer.on('open', () => {
+    let conn = peer.connect(hostRoomCode);
+    connections.push(conn);
+    alert("Te-ai conectat la camera prietenului!");
+  });
 }
 
-// Trimite fișierul .txt pe Arduino
-function sendTxtFile() {
-  const fileInput = document.getElementById('txtPicker');
-  const file = fileInput.files[0];
-  
-  if (!file) {
-    alert("Selectează un fișier .txt mai întâi!");
-    return;
-  }
-
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    const textContent = e.target.result;
-    // Trimite doar primele 32 de caractere (cât încap pe 2 rânduri LCD 1602)
-    sendData("TXT:" + textContent.substring(0, 32));
-    alert("Fișier trimis cu succes pe BroOS!");
-  };
-  reader.readAsText(file);
-}
-
-// Ascultă semnalele trimise de Arduino (Joystick, Jump, Attack, Dash)
+// 4. Citire semnale de la Joystick-ul TĂU și trimiterea lor prin Internet
 async function readLoop() {
   const textDecoder = new TextDecoderStream();
-  const readableStreamClosed = port.readable.pipeTo(textDecoder.writable);
-  reader = textDecoder.readable.getReader();
+  port.readable.pipeTo(textDecoder.writable);
+  const reader = textDecoder.readable.getReader();
 
   while (true) {
     const { value, done } = await reader.read();
-    if (done) {
-      reader.releaseLock();
-      break;
-    }
+    if (done) break;
     if (value) {
-      console.log("Comandă primită de la BroOS Controller:", value.trim());
-      // Aici vor fi primite comenzile "BTN:JUMP", "BTN:ATTACK", "BTN:DASH" pentru jocurile web
+      let command = value.trim();
+      
+      // Trimite comanda ta prin internet către toți prietenii din lobby!
+      connections.forEach(conn => {
+        conn.send({ player: peer.id, action: command });
+      });
     }
   }
 }
