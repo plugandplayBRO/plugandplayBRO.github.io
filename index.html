@@ -101,7 +101,7 @@
     <!-- File Manager & Chat -->
     <div class="card">
       <h3>📁 File & Chat Sender</h3>
-      <p>Trimite fișiere `.txt` sau mesaje scrise pe ecranul LCD 1602.</p>
+      <p>Trimite fișiere `.txt` în File Manager sau mesaje pe ecranul LCD.</p>
       <input type="file" id="txtPicker" accept=".txt">
       <button class="btn" onclick="sendTxtFile()">Trimite Fișier</button>
       <hr style="border-color: #333; margin: 15px 0;">
@@ -149,16 +149,27 @@
       }
     }
 
+    // Funcție actualizată pentru trimiterea liniilor de fișier direct în File Manager
     async function sendTxtFile() {
       let fileInput = document.getElementById('txtPicker');
       if (fileInput.files.length === 0) return alert("Alege mai întâi un fișier .txt!");
       
       let file = fileInput.files[0];
       let text = await file.text();
-      let firstLine = text.split('\n')[0].substring(0, 16);
+      let lines = text.split('\n');
+
       if (typeof sendToArduino === 'function') {
-        sendToArduino("CHAT_IN:" + firstLine);
-        alert("Fișier trimis pe LCD!");
+        await sendToArduino("FILE_START");
+        for (let i = 0; i < Math.min(lines.length, 4); i++) {
+          let lineText = lines[i].trim().substring(0, 16);
+          if (lineText.length > 0) {
+            await sendToArduino("FILE_LINE:" + lineText);
+          }
+        }
+        await sendToArduino("FILE_END");
+        alert("Fișier trimis în File Manager pe Arduino!");
+      } else {
+        alert("Conectează mai întâi consola prin USB!");
       }
     }
 
