@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fight Bros 1v1 Arena</title>
+  <style>
+    body {
+      background-color: #0f0f15;
+      color: #fff;
+      font-family: 'Segoe UI', sans-serif;
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    h1 { margin-bottom: 5px; color: #00e676; }
+    .nav-btn {
+      background: #333;
+      color: #fff;
+      border: 1px solid #555;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      margin-bottom: 15px;
+      text-decoration: none;
+    }
+    .nav-btn:hover { background: #444; }
+    canvas {
+      border: 3px solid #00e676;
+      border-radius: 8px;
+      background: #181824;
+      box-shadow: 0 0 20px rgba(0, 230, 118, 0.2);
+    }
+    .controls-info {
+      margin-top: 15px;
+      color: #aaa;
+      font-size: 14px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+  <a href="index.html" class="nav-btn">⬅ Înapoi la Meniu</a>
+  <h1>⚔️ Fight Bros - 1v1 Arena</h1>
+  
+  <canvas id="gameCanvas" width="800" height="400"></canvas>
+
+  <div class="controls-info">
+    <p>🎮 <b>P1 (Verde):</b> Joystick BroOS sau A / D / W / Space de la tastatură</p>
+    <p>🌐 <b>P2 (Roșu):</b> Trimis de la distanță din consola prietenului</p>
+  </div>
+
+  <script src="app.js"></script>
+
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    // Jucătorul 1 (Local - BroOS)
+    const p1 = {
+      x: 100,
+      y: 300,
+      width: 35,
+      height: 50,
+      color: '#00e676',
+      vy: 0,
+      isGrounded: true,
+      hp: 100
+    };
+
+    // Jucătorul 2 (Adversar Online / Sistem)
+    const p2 = {
+      x: 650,
+      y: 300,
+      width: 35,
+      height: 50,
+      color: '#ff5252',
+      vy: 0,
+      isGrounded: true,
+      hp: 100
+    };
+
+    const gravity = 0.8;
+    const floorY = 320;
+
+    // Suprapunem comanda locală sau primită pe acțiuni fizice în joc
+    window.addEventListener('message', (event) => {
+      handleGameCommand(event.data);
+    });
+
+    // Ascultăm comenzile directe din sistem
+    function executeAction(cmd) {
+      // --- PLAYER 1 (TU) ---
+      if (cmd === "P:LEFT") p1.x -= 15;
+      if (cmd === "P:RIGHT") p1.x += 15;
+      if (cmd === "P:JUMP" && p1.isGrounded) { p1.vy = -14; p1.isGrounded = false; }
+      if (cmd === "P:ATK") {
+        if (Math.abs(p1.x - p2.x) < 50 && Math.abs(p1.y - p2.y) < 50) p2.hp -= 10;
+      }
+
+      // --- PLAYER 2 (ADVERSAR) ---
+      if (cmd === "OPP:LEFT") p2.x -= 15;
+      if (cmd === "OPP:RIGHT") p2.x += 15;
+      if (cmd === "OPP:JUMP" && p2.isGrounded) { p2.vy = -14; p2.isGrounded = false; }
+      if (cmd === "OPP:ATK") {
+        if (Math.abs(p1.x - p2.x) < 50 && Math.abs(p1.y - p2.y) < 50) p1.hp -= 10;
+      }
+    }
+
+    // Suport și pentru tastatură (dacă testezi pe laptop fără cablu USB)
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'a' || e.key === 'A') executeAction("P:LEFT");
+      if (e.key === 'd' || e.key === 'D') executeAction("P:RIGHT");
+      if (e.key === 'w' || e.key === 'W') executeAction("P:JUMP");
+      if (e.key === ' ') executeAction("P:ATK");
+    });
+
+    // Loop-ul principal de animație și fizică
+    function gameLoop() {
+      // Aplicăm gravitația
+      p1.vy += gravity;
+      p1.y += p1.vy;
+      if (p1.y >= floorY - p1.height) {
+        p1.y = floorY - p1.height;
+        p1.vy = 0;
+        p1.isGrounded = true;
+      }
+
+      p2.vy += gravity;
+      p2.y += p2.vy;
+      if (p2.y >= floorY - p2.height) {
+        p2.y = floorY - p2.height;
+        p2.vy = 0;
+        p2.isGrounded = true;
+      }
+
+      // Curățăm ecranul
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Desenăm Podeaua
+      ctx.fillStyle = '#2a2a3a';
+      ctx.fillRect(0, floorY, canvas.width, canvas.height - floorY);
+
+      // Desenăm P1
+      ctx.fillStyle = p1.color;
+      ctx.fillRect(p1.x, p1.y, p1.width, p1.height);
+      // HP Bar P1
+      ctx.fillStyle = '#333';
+      ctx.fillRect(20, 20, 200, 15);
+      ctx.fillStyle = '#00e676';
+      ctx.fillRect(20, 20, Math.max(0, p1.hp * 2), 15);
+
+      // Desenăm P2
+      ctx.fillStyle = p2.color;
+      ctx.fillRect(p2.x, p2.y, p2.width, p2.height);
+      // HP Bar P2
+      ctx.fillStyle = '#333';
+      ctx.fillRect(580, 20, 200, 15);
+      ctx.fillStyle = '#ff5252';
+      ctx.fillRect(580 + (200 - Math.max(0, p2.hp * 2)), 20, Math.max(0, p2.hp * 2), 15);
+
+      requestAnimationFrame(gameLoop);
+    }
+
+    gameLoop();
+  </script>
+</body>
+</html>

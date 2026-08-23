@@ -124,10 +124,11 @@
     </div>
   </div>
 
+  <!-- Legătura cu fișierul extern app.js -->
   <script src="app.js"></script>
   
   <script>
-    // Functii ajutatoare conectate la interfata HTML
+    // Funcții ajutătoare conectate la interfața HTML
     function handleCreateRoom() {
       let code = document.getElementById('roomCodeInput').value.trim();
       if (!code) return alert("Introdu un cod pentru cameră!");
@@ -154,7 +155,6 @@
       
       let file = fileInput.files[0];
       let text = await file.text();
-      // Trimitem prima linie din fisier catre Arduino
       let firstLine = text.split('\n')[0].substring(0, 16);
       if (typeof sendToArduino === 'function') {
         sendToArduino("CHAT_IN:" + firstLine);
@@ -162,8 +162,17 @@
       }
     }
 
+    // Funcția pentru lansarea fișierelor jocurilor
     function launchApp(appName) {
-      alert("Se lansează " + appName + "! Folosește controller-ul BroOS conectat prin USB.");
+      if (appName === 'FightBros') {
+        window.location.href = "fightbros.html"; 
+      } else if (appName === 'Dino') {
+        window.location.href = "dino.html"; 
+      } else if (appName === 'Gallery') {
+        window.location.href = "gallery.html";
+      } else {
+        alert("Se lansează " + appName);
+      }
     }
   </script>
 </body>
