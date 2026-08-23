@@ -3,188 +3,365 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>BroOS - Plug & Play Store</title>
-  
-  <!-- Includem biblioteca PeerJS pentru conectare Multiplayer -->
-  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-
+  <title>BroOS - Web Dashboard & Control Center</title>
   <style>
+    :root {
+      --bg-color: #0b0f19;
+      --card-bg: #151f32;
+      --accent: #2563eb;
+      --accent-hover: #1d4ed8;
+      --success: #10b981;
+      --danger: #ef4444;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --border: #1e293b;
+    }
+
     body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background-color: #121212;
-      color: #ffffff;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text);
       margin: 0;
       padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    header {
       text-align: center;
+      margin-bottom: 25px;
     }
-    h1 { color: #00e676; margin-bottom: 5px; }
-    p.subtitle { color: #aaa; margin-bottom: 25px; }
-    
-    .status-card {
-      background: #1e1e1e;
-      border: 2px solid #333;
-      border-radius: 10px;
-      padding: 15px;
-      max-width: 500px;
-      margin: 0 auto 20px auto;
+
+    h1 {
+      margin: 0 0 10px 0;
+      font-size: 2rem;
+      color: #38bdf8;
     }
-    
-    .btn {
-      background: #00e676;
+
+    .status-container {
+      background-color: var(--card-bg);
+      border: 1px solid var(--border);
+      padding: 12px 24px;
+      border-radius: 50px;
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+
+    .badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+
+    .dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background-color: var(--danger);
+      box-shadow: 0 0 8px var(--danger);
+    }
+
+    .dot.online {
+      background-color: var(--success);
+      box-shadow: 0 0 8px var(--success);
+    }
+
+    .btn-connect {
+      background-color: var(--accent);
+      color: white;
       border: none;
-      color: #000;
-      padding: 10px 16px;
+      padding: 8px 18px;
+      border-radius: 20px;
       font-weight: bold;
-      border-radius: 6px;
       cursor: pointer;
-      font-size: 14px;
-      transition: 0.2s;
-      margin-top: 5px;
+      transition: all 0.2s ease;
     }
-    .btn:hover { background: #00c853; transform: scale(1.02); }
-    .btn-connect { background: #29b6f6; color: #fff; }
-    .btn-connect:hover { background: #0288d1; }
-    .btn-room { background: #ab47bc; color: #fff; }
-    .btn-room:hover { background: #8e24aa; }
+
+    .btn-connect:hover {
+      background-color: var(--accent-hover);
+      transform: translateY(-1px);
+    }
 
     .grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
       gap: 20px;
-      max-width: 800px;
-      margin: 0 auto;
+      width: 100%;
+      max-width: 1100px;
+      margin-top: 20px;
     }
 
     .card {
-      background: #1e1e1e;
-      border: 1px solid #333;
-      border-radius: 10px;
+      background-color: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 16px;
       padding: 20px;
-      text-align: left;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.2);
     }
-    .card h3 { color: #00e676; margin-top: 0; }
-    .card p { color: #ccc; font-size: 14px; }
-    
-    input[type="file"], input[type="text"] {
+
+    .card h2 {
+      margin-top: 0;
+      font-size: 1.2rem;
+      color: #60a5fa;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 10px;
+    }
+
+    textarea, input[type="text"] {
+      width: 100%;
+      background-color: #0b0f19;
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 10px;
+      border-radius: 8px;
+      box-sizing: border-box;
       margin-bottom: 10px;
-      padding: 8px;
-      background: #2a2a2a;
-      border: 1px solid #444;
-      color: #fff;
-      border-radius: 4px;
-      width: calc(100% - 18px);
+      font-family: inherit;
+    }
+
+    textarea {
+      resize: vertical;
+      height: 90px;
+    }
+
+    .btn {
+      width: 100%;
+      background-color: var(--accent);
+      color: white;
+      border: none;
+      padding: 12px;
+      border-radius: 8px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .btn:hover {
+      background-color: var(--accent-hover);
+    }
+
+    .btn-green {
+      background-color: var(--success);
+    }
+
+    .btn-green:hover {
+      background-color: #059669;
+    }
+
+    .terminal {
+      background-color: #050811;
+      border: 1px solid var(--border);
+      color: #4ade80;
+      font-family: 'Consolas', 'Courier New', monospace;
+      padding: 12px;
+      border-radius: 8px;
+      height: 140px;
+      overflow-y: auto;
+      margin-bottom: 10px;
+      font-size: 0.9rem;
+    }
+
+    .controls-hint {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      line-height: 1.5;
     }
   </style>
 </head>
 <body>
 
-  <h1>BRO-TEAM PLUG & PLAY</h1>
-  <p class="subtitle">Platforma Web pentru BroOS & Console Arduino</p>
-
-  <div class="status-card">
-    <button id="btnConnect" class="btn btn-connect">🔌 Conectează BroOS (USB)</button>
-    <p id="statusText">Stare USB: <b>Deconectat</b></p>
-  </div>
+  <header>
+    <h1>💻 BroOS Center</h1>
+    <div class="status-container">
+      <div class="badge">
+        <span id="statusDot" class="dot"></span>
+        <span id="statusText">Deconectat</span>
+      </div>
+      <button id="connectBtn" class="btn-connect">🔌 Conectează USB</button>
+    </div>
+  </header>
 
   <div class="grid">
-    <!-- Multiplayer Room Manager -->
+
+    <!-- CONTROLLER JOCURI -->
     <div class="card">
-      <h3>🌐 Multiplayer Online</h3>
-      <p>Creează sau conectează-te la o cameră pentru Fight Bros / Dino Run.</p>
-      <input type="text" id="roomCodeInput" placeholder="Ex: bro-room-123">
-      <div>
-        <button class="btn btn-room" onclick="handleCreateRoom()">Creează Cameră</button>
-        <button class="btn" onclick="handleJoinRoom()">Intră în Cameră</button>
+      <h2>🎮 Control Jocuri (Player 2)</h2>
+      <button id="dinoJumpBtn" class="btn btn-green" style="margin-bottom: 15px;">🦘 SĂRITURĂ DINO (SPACE)</button>
+      <div class="controls-hint">
+        <strong>Tastatură FightBros:</strong><br>
+        • <strong>W</strong> = Săritură | <strong>A</strong> = Stânga | <strong>D</strong> = Dreapta<br>
+        • <strong>J</strong> = Atac | <strong>K</strong> = Super Atac
       </div>
     </div>
 
-    <!-- File Manager & Chat -->
+    <!-- FILE MANAGER -->
     <div class="card">
-      <h3>📁 File & Chat Sender</h3>
-      <p>Trimite fișiere `.txt` în File Manager sau mesaje pe ecranul LCD.</p>
-      <input type="file" id="txtPicker" accept=".txt">
-      <button class="btn" onclick="sendTxtFile()">Trimite Fișier</button>
-      <hr style="border-color: #333; margin: 15px 0;">
-      <input type="text" id="chatInput" placeholder="Mesaj pe LCD...">
-      <button class="btn" onclick="sendChatMessage()">Trimite Mesaj</button>
+      <h2>📁 Trimite Fișier (FileManager)</h2>
+      <textarea id="fileText" placeholder="Introduceți textul fișierului (max 4 linii)..."></textarea>
+      <input type="file" id="fileInput" accept=".txt">
+      <button id="sendFileBtn" class="btn">📤 Trimite Fișier pe Ecran</button>
     </div>
 
-    <!-- Fight Bros Game -->
+    <!-- BRO CHAT -->
     <div class="card">
-      <h3>⚔️ Fight Bros</h3>
-      <p>Joc de luptă (1v1 / 2v2). Folosește Joystick (Jump/Attack) și Buton (Dash).</p>
-      <button class="btn" onclick="launchApp('FightBros')">Lansează Jocul</button>
+      <h2>💬 Console BroChat</h2>
+      <div id="chatTerminal" class="terminal"></div>
+      <input type="text" id="chatInput" placeholder="Scrie un mesaj...">
+      <button id="sendChatBtn" class="btn">Trimite Mesaj</button>
     </div>
 
-    <!-- Dino Game -->
-    <div class="card">
-      <h3>🦖 Dino Run</h3>
-      <p>Multiplayer până la 4 jucători. Evită obstacolele direct din controller.</p>
-      <button class="btn" onclick="launchApp('Dino')">Lansează Jocul</button>
-    </div>
   </div>
 
-  <!-- Legătura cu fișierul extern app.js -->
-  <script src="app.js"></script>
-  
   <script>
-    // Funcții ajutătoare conectate la interfața HTML
-    function handleCreateRoom() {
-      let code = document.getElementById('roomCodeInput').value.trim();
-      if (!code) return alert("Introdu un cod pentru cameră!");
-      createOnlineRoom(code);
-    }
+    let port = null;
+    let writer = null;
+    let isConnected = false;
 
-    function handleJoinRoom() {
-      let code = document.getElementById('roomCodeInput').value.trim();
-      if (!code) return alert("Introdu codul camerei la care vrei să te conectezi!");
-      joinOnlineRoom(code);
-    }
+    const connectBtn = document.getElementById('connectBtn');
+    const statusDot = document.getElementById('statusDot');
+    const statusText = document.getElementById('statusText');
 
-    function sendChatMessage() {
-      let msg = document.getElementById('chatInput').value.trim();
-      if (msg && typeof sendToArduino === 'function') {
-        sendToArduino("CHAT_IN:" + msg);
-        document.getElementById('chatInput').value = "";
+    const dinoJumpBtn = document.getElementById('dinoJumpBtn');
+    const sendFileBtn = document.getElementById('sendFileBtn');
+    const fileText = document.getElementById('fileText');
+    const fileInput = document.getElementById('fileInput');
+
+    const chatTerminal = document.getElementById('chatTerminal');
+    const chatInput = document.getElementById('chatInput');
+    const sendChatBtn = document.getElementById('sendChatBtn');
+
+    // CONECTARE DIRECTĂ USB VIA WEB SERIAL
+    connectBtn.onclick = async () => {
+      if (!("serial" in navigator)) {
+        alert("Browser-ul tău nu suportă Web Serial API! Deschide pagina în Google Chrome sau Microsoft Edge pe PC.");
+        return;
       }
-    }
 
-    // Funcție actualizată pentru trimiterea liniilor de fișier direct în File Manager
-    async function sendTxtFile() {
-      let fileInput = document.getElementById('txtPicker');
-      if (fileInput.files.length === 0) return alert("Alege mai întâi un fișier .txt!");
-      
-      let file = fileInput.files[0];
-      let text = await file.text();
-      let lines = text.split('\n');
+      try {
+        port = await navigator.serial.requestPort();
+        await port.open({ baudRate: 115200 });
 
-      if (typeof sendToArduino === 'function') {
-        await sendToArduino("FILE_START");
-        for (let i = 0; i < Math.min(lines.length, 4); i++) {
-          let lineText = lines[i].trim().substring(0, 16);
-          if (lineText.length > 0) {
-            await sendToArduino("FILE_LINE:" + lineText);
+        writer = port.writable.getWriter();
+        isConnected = true;
+
+        statusDot.classList.add('online');
+        statusText.innerText = "Conectat (115200 Baud)";
+        connectBtn.innerText = "✓ Conectat";
+        connectBtn.style.backgroundColor = "#10b981";
+
+        readSerialData();
+      } catch (err) {
+        console.error(err);
+        alert("Eroare la conectare: " + err.message);
+      }
+    };
+
+    // CITIRE SERIALĂ
+    async function readSerialData() {
+      const textDecoder = new TextDecoderStream();
+      const readableStreamClosed = port.readable.pipeTo(textDecoder.writable);
+      const reader = textDecoder.readable.getReader();
+
+      let buffer = "";
+
+      try {
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buffer += value;
+
+          let lines = buffer.split('\n');
+          buffer = lines.pop();
+
+          for (let line of lines) {
+            line = line.trim();
+            if (line.length > 0) {
+              const div = document.createElement('div');
+              div.innerText = line;
+              chatTerminal.appendChild(div);
+              chatTerminal.scrollTop = chatTerminal.scrollHeight;
+            }
           }
         }
-        await sendToArduino("FILE_END");
-        alert("Fișier trimis în File Manager pe Arduino!");
-      } else {
-        alert("Conectează mai întâi consola prin USB!");
+      } catch (err) {
+        console.error("Eroare citire:", err);
       }
     }
 
-    // Funcția pentru lansarea fișierelor jocurilor
-    function launchApp(appName) {
-      if (appName === 'FightBros') {
-        window.location.href = "fightbros.html"; 
-      } else if (appName === 'Dino') {
-        window.location.href = "dino.html"; 
-      } else if (appName === 'Gallery') {
-        window.location.href = "gallery.html";
-      } else {
-        alert("Se lansează " + appName);
+    // TRIMITERE COMANDĂ
+    async function sendCommand(cmd) {
+      if (!isConnected || !writer) {
+        alert("Apasă mai întâi pe butonul 'Conectează USB'!");
+        return;
       }
+      const encoder = new TextEncoder();
+      await writer.write(encoder.encode(cmd + "\n"));
     }
+
+    // FILE MANAGER
+    fileInput.onchange = (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (evt) => { fileText.value = evt.target.result; };
+        reader.readAsText(file);
+      }
+    };
+
+    sendFileBtn.onclick = async () => {
+      const content = fileText.value.trim();
+      if (!content) { alert("Scrieți sau încărcați un fișier mai întâi!"); return; }
+
+      const lines = content.split('\n');
+      await sendCommand("FILE_START");
+      await new Promise(r => setTimeout(r, 100));
+
+      const maxLines = Math.min(lines.length, 4);
+      for (let i = 0; i < maxLines; i++) {
+        let line = lines[i].trim();
+        if (line) {
+          await sendCommand(`FILE_LINE:${line}`);
+          await new Promise(r => setTimeout(r, 100));
+        }
+      }
+
+      await sendCommand("FILE_END");
+      alert("Fișier trimis pe ecranul BroOS!");
+    };
+
+    // CHAT
+    sendChatBtn.onclick = () => {
+      const msg = chatInput.value.trim();
+      if (msg) {
+        sendCommand(`CHAT_IN:Web:${msg}`);
+        const div = document.createElement('div');
+        div.innerText = "Tu: " + msg;
+        chatTerminal.appendChild(div);
+        chatTerminal.scrollTop = chatTerminal.scrollHeight;
+        chatInput.value = '';
+      }
+    };
+
+    chatInput.onkeypress = (e) => { if (e.key === 'Enter') sendChatBtn.click(); };
+
+    // CONTROALE JOCURI
+    dinoJumpBtn.onclick = () => { sendCommand("DINO2:JUMP"); };
+
+    window.onkeydown = (e) => {
+      if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA') return;
+
+      if (e.code === 'Space') { e.preventDefault(); sendCommand("DINO2:JUMP"); }
+      else if (e.key === 'a' || e.key === 'A') sendCommand("OPP:LEFT");
+      else if (e.key === 'd' || e.key === 'D') sendCommand("OPP:RIGHT");
+      else if (e.key === 'w' || e.key === 'W') sendCommand("OPP:JUMP");
+      else if (e.key === 'j' || e.key === 'J') sendCommand("OPP:ATK");
+      else if (e.key === 'k' || e.key === 'K') sendCommand("OPP:SUPER");
+    };
   </script>
 </body>
 </html>
