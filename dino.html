@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BroOS Web Console & Controller</title>
+  <style>
+    :root {
+      --bg-color: #0f172a;
+      --card-bg: #1e293b;
+      --accent: #3b82f6;
+      --accent-hover: #2563eb;
+      --text: #f8fafc;
+      --border: #334155;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text);
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    h1 {
+      margin-bottom: 20px;
+      color: #60a5fa;
+    }
+
+    .status-bar {
+      margin-bottom: 20px;
+      padding: 10px 20px;
+      border-radius: 8px;
+      background-color: var(--card-bg);
+      border: 1px solid var(--border);
+      display: flex;
+      gap: 15px;
+      align-items: center;
+    }
+
+    .dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background-color: #ef4444;
+      display: inline-block;
+    }
+
+    .dot.connected {
+      background-color: #10b981;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+      width: 100%;
+      max-width: 1000px;
+    }
+
+    .card {
+      background-color: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+    }
+
+    .card h2 {
+      margin-top: 0;
+      font-size: 1.25rem;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 10px;
+      color: #93c5fd;
+    }
+
+    button {
+      background-color: var(--accent);
+      color: white;
+      border: none;
+      padding: 10px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: background-color 0.2s;
+    }
+
+    button:hover {
+      background-color: var(--accent-hover);
+    }
+
+    button:disabled {
+      background-color: #475569;
+      cursor: not-allowed;
+    }
+
+    textarea, input[type="text"] {
+      width: 100%;
+      background-color: #0f172a;
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 8px 12px;
+      border-radius: 6px;
+      box-sizing: border-box;
+      margin-bottom: 10px;
+    }
+
+    textarea {
+      resize: vertical;
+      height: 80px;
+    }
+
+    .terminal {
+      background-color: #000;
+      color: #4ade80;
+      font-family: 'Courier New', Courier, monospace;
+      padding: 10px;
+      border-radius: 6px;
+      height: 120px;
+      overflow-y: auto;
+      border: 1px solid var(--border);
+      margin-bottom: 10px;
+    }
+
+    .dino-controls {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .big-btn {
+      width: 100%;
+      padding: 15px;
+      font-size: 1.1rem;
+      background-color: #10b981;
+    }
+
+    .big-btn:hover {
+      background-color: #059669;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>🦖 BroOS Web Console & Game Controller</h1>
+
+  <div class="status-bar">
+    <span id="statusDot" class="dot"></span>
+    <span id="statusText">Deconectat</span>
+    <button id="connectBtn">Conectează Serial (USB)</button>
+  </div>
+
+  <div class="grid">
+
+    <!-- CARD DINO RUN / FIGHT BROS CONTROLLER -->
+    <div class="card">
+      <h2>🎮 Control MultiPlayer (Player 2)</h2>
+      <p style="font-size: 0.9rem; color: #94a3b8;">Apasă tasta <strong>SPACE</strong> sau butonul de mai jos pentru a sări în DinoRun Co-Op!</p>
+      <div class="dino-controls">
+        <button id="dinoJumpBtn" class="big-btn">🦘 SARI (SPACE / Player 2)</button>
+      </div>
+      <p style="font-size: 0.85rem; color: #64748b; margin-top: 15px;">
+        Controale FightBros (Atac/Super):<br>
+        Tasta <strong>A</strong> = Stânga | <strong>D</strong> = Dreapta | <strong>W</strong> = Săritură<br>
+        Tasta <strong>J</strong> = Atac | <strong>K</strong> = Super
+      </p>
+    </div>
+
+    <!-- CARD TRIMITE FIȘIER -->
+    <div class="card">
+      <h2>📁 Trimite Fișier (FileManager)</h2>
+      <textarea id="fileText" placeholder="Scrie textul fișierului aici (maxim 4 linii)..."></textarea>
+      <input type="file" id="fileInput" accept=".txt" style="margin-bottom: 10px;">
+      <button id="sendFileBtn">📤 Trimite Fișierul pe BroOS</button>
+    </div>
+
+    <!-- CARD BRO CHAT -->
+    <div class="card">
+      <h2>💬 BroChat</h2>
+      <div id="chatTerminal" class="terminal"></div>
+      <input type="text" id="chatInput" placeholder="Scrie un mesaj...">
+      <button id="sendChatBtn">Trimite Mesaj</button>
+    </div>
+
+  </div>
+
+  <script>
+    let port;
+    let writer;
+    let reader;
+
+    const connectBtn = document.getElementById('connectBtn');
+    const statusDot = document.getElementById('statusDot');
+    const statusText = document.getElementById('statusText');
+
+    const dinoJumpBtn = document.getElementById('dinoJumpBtn');
+    const sendFileBtn = document.getElementById('sendFileBtn');
+    const fileText = document.getElementById('fileText');
+    const fileInput = document.getElementById('fileInput');
+
+    const chatTerminal = document.getElementById('chatTerminal');
+    const chatInput = document.getElementById('chatInput');
+    const sendChatBtn = document.getElementById('sendChatBtn');
+
+    // --- CONECTARE WEB SERIAL ---
+    connectBtn.addEventListener('click', async () => {
+      if ('serial' in navigator) {
+        try {
+          port = await navigator.serial.requestPort();
+          await port.open({ baudRate: 115200 });
+
+          const textEncoder = new TextEncoderStream();
+          const writableStreamClosed = textEncoder.readable.pipeTo(port.writable);
+          writer = textEncoder.writable.getWriter();
+
+          statusDot.classList.add('connected');
+          statusText.innerText = "Conectat (115200 Baud)";
+          connectBtn.disabled = true;
+
+          readSerialData();
+        } catch (err) {
+          alert("Eroare la conectare: " + err.message);
+        }
+      } else {
+        alert("Browser-ul tău nu suportă Web Serial API! Folosește Google Chrome sau Microsoft Edge.");
+      }
+    });
+
+    // --- CITIRE DATE SERIAL DE LA ARDUINO ---
+    async function readSerialData() {
+      const textDecoder = new TextDecoderStream();
+      const readableStreamClosed = port.readable.pipeTo(textDecoder.writable);
+      reader = textDecoder.readable.getReader();
+
+      let lineBuffer = "";
+
+      try {
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          lineBuffer += value;
+          
+          let lines = lineBuffer.split('\n');
+          lineBuffer = lines.pop(); // Păstrăm fragmentul rămas
+
+          for (let line of lines) {
+            line = line.trim();
+            if (line.length > 0) {
+              logToTerminal(line);
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Eroare la citire:", err);
+      }
+    }
+
+    function logToTerminal(msg) {
+      const p = document.createElement('div');
+      p.innerText = msg;
+      chatTerminal.appendChild(p);
+      chatTerminal.scrollTop = chatTerminal.scrollHeight;
+    }
+
+    // --- TRIMITERE COMANDĂ SERIAL ---
+    async function sendCommand(cmd) {
+      if (!writer) {
+        alert("Conectează-te mai întâi la Arduino!");
+        return;
+      }
+      await writer.write(cmd + "\n");
+    }
+
+    // --- TRIMIS MESAJ CHAT ---
+    sendChatBtn.addEventListener('click', () => {
+      const msg = chatInput.value.trim();
+      if (msg) {
+        sendCommand(`CHAT_IN:Web:${msg}`);
+        logToTerminal(`Tu: ${msg}`);
+        chatInput.value = '';
+      }
+    });
+
+    chatInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') sendChatBtn.click();
+    });
+
+    // --- TRIMIS FIȘIER (FILE MANAGER) ---
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        const fileReader = new FileReader();
+        fileReader.onload = (event) => {
+          fileText.value = event.target.result;
+        };
+        fileReader.readAsText(file);
+      }
+    });
+
+    sendFileBtn.addEventListener('click', async () => {
+      if (!writer) {
+        alert("Conectează-te mai întâi la Arduino!");
+        return;
+      }
+
+      const content = fileText.value.trim();
+      if (!content) {
+        alert("Introduceți mai întâi un text sau încărcați un fișier!");
+        return;
+      }
+
+      const lines = content.split('\n');
+
+      await sendCommand("FILE_START");
+      await new Promise(r => setTimeout(r, 100));
+
+      const maxLines = Math.min(lines.length, 4);
+      for (let i = 0; i < maxLines; i++) {
+        let line = lines[i].trim();
+        if (line) {
+          await sendCommand(`FILE_LINE:${line}`);
+          await new Promise(r => setTimeout(r, 100));
+        }
+      }
+
+      await sendCommand("FILE_END");
+      alert("Fișier trimis cu succes către BroOS!");
+    });
+
+    // --- CONTROALE JOC DINO RUN & FIGHT BROS ---
+    dinoJumpBtn.addEventListener('click', () => {
+      sendCommand("DINO2:JUMP");
+    });
+
+    window.addEventListener('keydown', (e) => {
+      if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA') return;
+
+      if (e.code === 'Space') {
+        e.preventDefault();
+        sendCommand("DINO2:JUMP");
+      } else if (e.key === 'a' || e.key === 'A') {
+        sendCommand("OPP:LEFT");
+      } else if (e.key === 'd' || e.key === 'D') {
+        sendCommand("OPP:RIGHT");
+      } else if (e.key === 'w' || e.key === 'W') {
+        sendCommand("OPP:JUMP");
+      } else if (e.key === 'j' || e.key === 'J') {
+        sendCommand("OPP:ATK");
+      } else if (e.key === 'k' || e.key === 'K') {
+        sendCommand("OPP:SUPER");
+      }
+    });
+  </script>
+</body>
+</html>
