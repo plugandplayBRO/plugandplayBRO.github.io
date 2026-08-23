@@ -1,245 +1,110 @@
-\<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ro">
 <head>
   <meta charset="UTF-8">
-  <title>BroOS Dashboard 🖥️</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BroOS - Plug & Play Store</title>
   <style>
-    body { font-family: sans-serif; background: #1e1e2e; color: #cdd6f4; text-align: center; margin: 0; padding: 20px; }
-    .screen { max-width: 650px; margin: 0 auto; background: #313244; padding: 20px; border-radius: 12px; }
-    .hidden { display: none; }
-    input, button { padding: 10px; margin: 8px; border-radius: 6px; border: none; font-size: 16px; }
-    button { background: #89b4fa; color: #11111b; font-weight: bold; cursor: pointer; }
-    button:hover { background: #b4befe; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #121212;
+      color: #ffffff;
+      margin: 0;
+      padding: 20px;
+      text-align: center;
+    }
+    h1 { color: #00e676; margin-bottom: 5px; }
+    p.subtitle { color: #aaa; margin-bottom: 25px; }
     
-    .app-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-top: 20px; }
-    .card { background: #45475a; padding: 20px; border-radius: 8px; cursor: pointer; transition: transform 0.2s; }
-    .card:hover { transform: scale(1.05); background: #585b70; }
+    .status-card {
+      background: #1e1e1e;
+      border: 2px solid #333;
+      border-radius: 10px;
+      padding: 15px;
+      max-width: 500px;
+      margin: 0 auto 20px auto;
+    }
+    
+    .btn {
+      background: #00e676;
+      border: none;
+      color: #000;
+      padding: 12px 20px;
+      font-weight: bold;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 15px;
+      transition: 0.2s;
+    }
+    .btn:hover { background: #00c853; transform: scale(1.02); }
+    .btn-connect { background: #29b6f6; color: #fff; }
+    .btn-connect:hover { background: #0288d1; }
 
-    /* Arena Fight Bros 🥊 */
-    #fight-arena { width: 100%; height: 200px; background: #181825; border-radius: 8px; position: relative; overflow: hidden; margin-top: 10px; }
-    .fighter { width: 35px; height: 35px; position: absolute; bottom: 10px; border-radius: 4px; transition: left 0.1s ease; }
-    #p1-fighter { background: #f38ba8; left: 50px; }
-    #p2-fighter { background: #a6e3a1; left: 500px; }
-    .damage-blink { animation: blink 0.15s infinite; }
-    @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.2; } 100% { opacity: 1; } }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 20px;
+      max-width: 800px;
+      margin: 0 auto;
+    }
 
-    /* Pista Dino Runner 🦖 */
-    #dino-track { width: 100%; height: 180px; background: #181825; border-radius: 8px; position: relative; overflow: hidden; margin-top: 10px; border-bottom: 4px solid #a6e3a1; }
-    .dino-sprite { width: 30px; height: 30px; position: absolute; bottom: 0px; border-radius: 4px; transition: bottom 0.2s ease; }
-    #dino-p1 { background: #f38ba8; left: 60px; }
-    #dino-p2 { background: #89b4fa; left: 120px; }
+    .card {
+      background: #1e1e1e;
+      border: 1px solid #333;
+      border-radius: 10px;
+      padding: 20px;
+      text-align: left;
+    }
+    .card h3 { color: #00e676; margin-top: 0; }
+    .card p { color: #ccc; font-size: 14px; }
+    
+    input[type="file"] {
+      margin-bottom: 10px;
+      color: #ccc;
+    }
   </style>
 </head>
 <body>
 
-  <div id="screen-login" class="screen">
-    <h2>BroOS Connect 🔌</h2>
-    <button id="btn-connect">1. Conectează Arduino 📟</button>
-    <p id="serial-status">Stare Arduino: Deconectat 🔴</p>
-    <hr>
-    <input type="text" id="user-id" placeholder="Numele tău (ex: Player1)">
-    <button id="btn-login">2. Intră în BroOS 🚀</button>
+  <h1>BRO-TEAM PLUG & PLAY</h1>
+  <p class="subtitle">Platforma Web pentru BroOS & Console Arduino</p>
+
+  <div class="status-card">
+    <button id="btnConnect" class="btn btn-connect">🔌 Conectează BroOS (USB)</button>
+    <p id="statusText">Stare: <b>Deconectat</b></p>
   </div>
 
-  <div id="screen-menu" class="screen hidden">
-    <h2 id="welcome-msg">BroOS Apps 🖥️</h2>
-    <div class="app-grid">
-      <div class="card" id="btn-fight">🥊<br>Fight Bros</div>
-      <div class="card" id="btn-dino">🦖<br>Dino Runner</div>
-      <div class="card" id="btn-chat">💬<br>Bros Chat</div>
+  <div class="grid">
+    <!-- File Manager -->
+    <div class="card">
+      <h3>📁 File Manager</h3>
+      <p>Trimite fișiere .txt de pe laptop direct pe ecranul LCD 1602.</p>
+      <input type="file" id="txtPicker" accept=".txt"><br>
+      <button class="btn" onclick="sendTxtFile()">Trimite Fișier</button>
+    </div>
+
+    <!-- Fight Bros Game -->
+    <div class="card">
+      <h3>⚔️ Fight Bros</h3>
+      <p>Joc de luptă (1v1 / 2v2). Folosește Joystick (Jump/Attack) și Buton (Dash).</p>
+      <button class="btn" onclick="launchApp('FightBros')">Lansează Jocul</button>
+    </div>
+
+    <!-- Dino Game -->
+    <div class="card">
+      <h3>🦖 Dino Run</h3>
+      <p>Multiplayer până la 4 jucători. Evită obstacolele direct din controller.</p>
+      <button class="btn" onclick="launchApp('Dino')">Lansează Jocul</button>
+    </div>
+
+    <!-- Pixel Art Gallery -->
+    <div class="card">
+      <h3>🎨 Galeria Pixel Art</h3>
+      <p>Afișează skin-ul creat de tine pentru caracterul din Fight Bros.</p>
+      <button class="btn" onclick="launchApp('Gallery')">Deschide Galeria</button>
     </div>
   </div>
 
-  <div id="screen-app" class="screen hidden">
-    <button id="btn-back">⬅️ Înapoi la Meniu</button>
-    <h3 id="app-title">Titlu Aplicație</h3>
-    <div id="app-content"></div>
-  </div>
-
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
-
-    const firebaseConfig = {
-      apiKey: "AIzaSyCkrOZEsnzArIOw90wLq2yFNfNGfvk5C1A",
-      authDomain: "broos-network.firebaseapp.com",
-      projectId: "broos-network",
-      storageBucket: "broos-network.firebasestorage.app",
-      messagingSenderId: "592892049153",
-      appId: "1:592892049153:web:64823347938791559e4d00"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
-
-    let port, writer;
-    let currentUser = "";
-
-    function showScreen(screenId) {
-      document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
-      document.getElementById(screenId).classList.remove('hidden');
-    }
-
-    // Web Serial 🔌 - Conectare și Citire Date de la Arduino
-    document.getElementById('btn-connect').addEventListener('click', async () => {
-      try {
-        port = await navigator.serial.requestPort();
-        await port.open({ baudRate: 9600 });
-        writer = port.writable.getWriter();
-        document.getElementById('serial-status').innerText = "Stare Arduino: Conectat 🟢";
-        readSerial(); // Pornim ascultarea datelor trimise de Arduino
-      } catch (err) {
-        document.getElementById('serial-status').innerText = "Eroare: " + err;
-      }
-    });
-
-    async function readSerial() {
-      const textDecoder = new TextDecoderStream();
-      port.readable.pipeTo(textDecoder.writable);
-      const reader = textDecoder.readable.getReader();
-      let buffer = "";
-
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        buffer += value;
-        let lines = buffer.split("\n");
-        buffer = lines.pop();
-
-        for (let line of lines) {
-          const command = line.trim();
-          handleArduinoCommand(command);
-        }
-      }
-    }
-
-    // Procesare Comenzi Arduino 📟
-    function handleArduinoCommand(cmd) {
-      if (!currentUser) return;
-
-      if (cmd === "DASH") {
-        set(ref(db, 'fight_bros/actions'), { user: currentUser, type: 'DASH', time: Date.now() });
-      } else if (cmd === "ATTACK") {
-        set(ref(db, 'fight_bros/actions'), { user: currentUser, type: 'ATTACK', time: Date.now() });
-      } else if (cmd === "JUMP") {
-        set(ref(db, 'dino/jump'), { user: currentUser, time: Date.now() });
-      }
-    }
-
-    // Autentificare 🚀
-    document.getElementById('btn-login').addEventListener('click', () => {
-      const username = document.getElementById('user-id').value.trim();
-      if (!username) return;
-      currentUser = username;
-      document.getElementById('welcome-msg').innerText = `Salut, ${currentUser}! 🖥️`;
-      showScreen('screen-menu');
-    });
-
-    document.getElementById('btn-back').addEventListener('click', () => showScreen('screen-menu'));
-
-    // Navigare aplicații 📱
-    document.getElementById('btn-chat').addEventListener('click', () => {
-      document.getElementById('app-title').innerText = "Bros Chat 💬";
-      document.getElementById('app-content').innerHTML = `
-        <div style="text-align: left; height: 150px; overflow-y: auto; background: #181825; padding: 10px; margin-bottom: 10px; border-radius: 6px;" id="chat-box"></div>
-        <input type="text" id="chat-msg" placeholder="Mesaj...">
-        <button id="btn-send-chat">Trimite 📤</button>
-      `;
-      showScreen('screen-app');
-      initChat();
-    });
-
-    document.getElementById('btn-fight').addEventListener('click', () => {
-      document.getElementById('app-title').innerText = "Fight Bros 🥊";
-      document.getElementById('app-content').innerHTML = `
-        <div id="fight-arena">
-          <div id="p1-fighter" class="fighter"></div>
-          <div id="p2-fighter" class="fighter"></div>
-        </div>
-        <p>Comenzi Arduino: <code>DASH</code> 💨 | <code>ATTACK</code> ⚔️</p>
-        <p>Tastatură test: <strong>A</strong> (Dash) | <strong>S</strong> (Atac)</p>
-      `;
-      showScreen('screen-app');
-      initFightBros();
-    });
-
-    document.getElementById('btn-dino').addEventListener('click', () => {
-      document.getElementById('app-title').innerText = "Dino Runner 🦖";
-      document.getElementById('app-content').innerHTML = `
-        <div id="dino-track">
-          <div id="dino-p1" class="dino-sprite"></div>
-          <div id="dino-p2" class="dino-sprite"></div>
-        </div>
-        <p>Comandă Arduino: <code>JUMP</code> 🦘</p>
-        <p>Tastatură test: <strong>Space</strong></p>
-      `;
-      showScreen('screen-app');
-      initDino();
-    });
-
-    // Logica 💬 Bros Chat
-    function initChat() {
-      onValue(ref(db, 'global_chat'), (snapshot) => {
-        const data = snapshot.val();
-        const box = document.getElementById('chat-box');
-        if (data && box) {
-          box.innerHTML = Object.values(data).map(m => `<p style="margin:4px 0;"><strong>${m.user}:</strong> ${m.text}</p>`).join('');
-          box.scrollTop = box.scrollHeight;
-        }
-      });
-
-      document.getElementById('btn-send-chat').onclick = async () => {
-        const input = document.getElementById('chat-msg');
-        if (input.value.trim()) {
-          await set(ref(db, 'global_chat/' + Date.now()), { user: currentUser, text: input.value });
-          if (writer) await writer.write(new TextEncoder().encode(input.value + "\n"));
-          input.value = '';
-        }
-      };
-    }
-
-    // Logica 🥊 Fight Bros
-    function initFightBros() {
-      const p1 = document.getElementById('p1-fighter');
-      const p2 = document.getElementById('p2-fighter');
-
-      onValue(ref(db, 'fight_bros/actions'), (snapshot) => {
-        const data = snapshot.val();
-        if (!data) return;
-
-        const target = data.user === currentUser ? p1 : p2;
-        if (data.type === 'DASH') {
-          target.style.left = (target.offsetLeft + 40) + 'px';
-        } else if (data.type === 'ATTACK') {
-          const enemy = data.user === currentUser ? p2 : p1;
-          enemy.classList.add('damage-blink');
-          setTimeout(() => enemy.classList.remove('damage-blink'), 400);
-        }
-      });
-
-      window.onkeydown = (e) => {
-        if (e.key === 'a' || e.key === 'A') handleArduinoCommand("DASH");
-        if (e.key === 's' || e.key === 'S') handleArduinoCommand("ATTACK");
-      };
-    }
-
-    // Logica 🦖 Dino Runner
-    function initDino() {
-      const dino1 = document.getElementById('dino-p1');
-      const dino2 = document.getElementById('dino-p2');
-
-      onValue(ref(db, 'dino/jump'), (snapshot) => {
-        const data = snapshot.val();
-        if (!data) return;
-        const target = data.user === currentUser ? dino1 : dino2;
-        target.style.bottom = '80px';
-        setTimeout(() => { target.style.bottom = '0px'; }, 400);
-      });
-
-      window.onkeydown = (e) => {
-        if (e.code === 'Space') handleArduinoCommand("JUMP");
-      };
-    }
-  </script>
+  <script src="app.js"></script>
 </body>
 </html>
