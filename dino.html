@@ -2,23 +2,63 @@
 <html lang="ro">
 <head>
     <meta charset="UTF-8">
-    <title>DinoRun - Multiplayer</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BroOS - DinoRun</title>
     <style>
-        body { background: #1a1a1a; color: #fff; font-family: monospace; text-align: center; margin-top: 30px; }
-        #track { width: 600px; height: 150px; background: #222; margin: 20px auto; position: relative; border: 2px solid yellow; overflow: hidden; }
-        .dino { position: absolute; bottom: 0; width: 30px; height: 40px; background: yellow; text-align: center; line-height: 40px; color: #000; font-weight: bold; }
-        #dino1 { left: 40px; }
-        #dino2 { left: 90px; background: orange; }
-        .back-btn { display: inline-block; margin-top: 20px; padding: 8px 16px; background: #444; color: yellow; text-decoration: none; border-radius: 4px; }
+        body { background-color: #121212; color: #e0e0e0; font-family: sans-serif; text-align: center; padding: 20px; }
+        header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #333; padding-bottom: 10px; margin-bottom: 20px; }
+        button { background-color: #1e1e1e; color: #fff; border: 1px solid #444; padding: 20px 40px; border-radius: 8px; font-size: 18px; cursor: pointer; margin: 10px; }
+        button:hover { background-color: #333; border-color: #4CAF50; }
+        .status { font-weight: bold; color: #ff5252; }
+        .status.connected { color: #4CAF50; }
+        .nav-back { display: inline-block; text-decoration: none; color: #fff; margin-bottom: 15px; float: left; }
     </style>
 </head>
 <body>
-    <h1>DinoRun Multiplayer</h1>
-    <div id="track">
-        <div id="dino1" class="dino">D1</div>
-        <div id="dino2" class="dino">D2</div>
+
+    <a href="index.html" class="nav-back">← Înapoi la Meniu</a>
+
+    <header>
+        <h1>DinoRun Controller</h1>
+        <div>
+            <span id="statusText" class="status">Deconectat</span>
+            <button id="connectBtn" onclick="toggleConnection()">Conectare Arduino</button>
+        </div>
+    </header>
+
+    <h2>Sari peste obstacole!</h2>
+    <div style="margin-top: 50px;">
+        <button onclick="sendCmd('DINO:JUMP')" style="font-size: 24px; background-color: #1b3b1b;">🦖 Salt Dino 1</button>
+        <button onclick="sendCmd('NET_IN:DINO2_JUMP')" style="font-size: 24px; background-color: #3b1b1b;">🦖 Salt Dino 2</button>
     </div>
-    <br>
-    <a href="index.html" class="back-btn">&#8592; Înapoi la Meniu</a>
+
+    <script>
+        let port, writer;
+        async function toggleConnection() {
+            if (port) {
+                await port.close(); port = null;
+                document.getElementById('statusText').innerText = "Deconectat";
+                document.getElementById('statusText').className = "status";
+                document.getElementById('connectBtn').innerText = "Conectare Arduino";
+            } else {
+                try {
+                    port = await navigator.serial.requestPort();
+                    await port.open({ baudRate: 115200 });
+                    document.getElementById('statusText').innerText = "Conectat";
+                    document.getElementById('statusText').className = "status connected";
+                    document.getElementById('connectBtn').innerText = "Deconectare";
+                } catch (err) { console.error(err); }
+            }
+        }
+
+        async function sendCmd(data) {
+            if (!port) { alert("Conectează mai întâi Arduino!"); return; }
+            const textEncoder = new TextEncoderStream();
+            textEncoder.readable.pipeTo(port.writable);
+            writer = textEncoder.writable.getWriter();
+            await writer.write(data + "\n");
+            writer.releaseLock();
+        }
+    </script>
 </body>
 </html>

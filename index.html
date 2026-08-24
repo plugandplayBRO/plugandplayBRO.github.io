@@ -2,23 +2,57 @@
 <html lang="ro">
 <head>
     <meta charset="UTF-8">
-    <title>BroOS v4.3 - Main Hub</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BroOS - Meniu Principal</title>
     <style>
-        body { background: #121212; color: #00ffcc; font-family: monospace; text-align: center; margin-top: 40px; }
-        .btn { display: block; width: 250px; margin: 15px auto; padding: 12px; background: #00ffcc; color: #121212; text-decoration: none; font-weight: bold; border-radius: 5px; font-size: 16px; }
-        .btn:hover { background: #00cca3; }
-        .container { max-width: 500px; margin: 0 auto; background: #1e1e1e; padding: 30px; border-radius: 10px; border: 1px solid #00ffcc; }
+        body { background-color: #121212; color: #e0e0e0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; padding: 30px; }
+        header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #333; padding-bottom: 15px; margin-bottom: 30px; }
+        .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; max-width: 500px; margin: 0 auto; }
+        button, a.btn { background-color: #1e1e1e; color: #fff; border: 1px solid #444; padding: 20px; border-radius: 8px; font-size: 16px; cursor: pointer; text-decoration: none; display: block; transition: 0.2s; }
+        button:hover, a.btn:hover { background-color: #333; border-color: #4CAF50; }
+        .status { font-weight: bold; color: #ff5252; }
+        .status.connected { color: #4CAF50; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>BroOS v4.3 - Main Hub</h1>
-        <p>Laptopul gestionează serverul și controllerele USB.</p>
-        <hr style="border-color: #00ffcc; margin: 20px 0;">
-        
-        <a href="fightbros.html" class="btn">FightBros (P1 vs P2)</a>
-        <a href="dino.html" class="btn">DinoRun Multiplayer</a>
-        <a href="galery.html" class="btn">Galerie Foto (Țipo & altele)</a>
+
+    <header>
+        <h1>BroOS v4.8 Control Center</h1>
+        <div>
+            <span id="statusText" class="status">Deconectat</span>
+            <button id="connectBtn" onclick="toggleConnection()">Conectare Arduino</button>
+        </div>
+    </header>
+
+    <h2>Aplicații Web</h2>
+    <div class="btn-grid">
+        <a href="fightbros.html" class="btn">🎮 FightBros Arena</a>
+        <a href="dino.html" class="btn">🦖 DinoRun MP</a>
+        <a href="galery.html" class="btn">🖼️ Galerie & Art</a>
+        <a href="message.html" class="btn">💬 Mesaje & Fișiere</a>
     </div>
+
+    <script>
+        let port;
+        async function toggleConnection() {
+            if (port) {
+                await port.close();
+                port = null;
+                document.getElementById('statusText').innerText = "Deconectat";
+                document.getElementById('statusText').className = "status";
+                document.getElementById('connectBtn').innerText = "Conectare Arduino";
+            } else {
+                try {
+                    port = await navigator.serial.requestPort();
+                    await port.open({ baudRate: 115200 });
+                    document.getElementById('statusText').innerText = "Conectat";
+                    document.getElementById('statusText').className = "status connected";
+                    document.getElementById('connectBtn').innerText = "Deconectare";
+                } catch (err) {
+                    console.error("Eroare conectare:", err);
+                }
+            }
+        }
+    </script>
 </body>
 </html>
