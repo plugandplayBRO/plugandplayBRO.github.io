@@ -3,53 +3,179 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DinoRun - Controler</title>
+    <title>DinoRun - BroOS Router Online & Local</title>
     <style>
         body { font-family: Arial, sans-serif; background-color: #121212; color: #fff; text-align: center; padding: 20px; }
-        .container { max-width: 500px; margin: 0 auto; background: #1e1e1e; padding: 20px; border-radius: 10px; }
-        button { background: #ff9800; color: white; border: none; padding: 20px; margin: 10px; border-radius: 8px; font-size: 20px; cursor: pointer; width: 80%; }
+        .container { max-width: 550px; margin: 0 auto; background: #1e1e1e; padding: 20px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+        button { background: #ff9800; color: white; border: none; padding: 12px 20px; margin: 8px; border-radius: 8px; font-size: 16px; cursor: pointer; width: 85%; }
         button:hover { background: #e68900; }
+        input { padding: 10px; margin: 5px; border-radius: 5px; border: none; background: #2d2d2d; color: #fff; width: 65%; font-size: 14px; }
+        .box { background: #2d2d2d; padding: 12px; border-radius: 8px; margin: 12px 0; text-align: left; }
         .back-btn { background: #555; display: inline-block; padding: 10px 15px; text-decoration: none; border-radius: 5px; color: white; margin-bottom: 15px; }
     </style>
 </head>
 <body>
     <div class="container">
         <a href="index.html" class="back-btn">&larr; Înapoi la Meniu</a>
-        <h2>DinoRun Controler</h2>
-        <p>Status: <span id="connStatus" style="color:red; font-weight:bold;">Deconectat</span></p>
-        <button id="connectBtn" style="background:#4CAF50; padding: 12px; font-size: 16px;">Conectare Placă</button>
-        <hr style="border-color: #444; margin: 20px 0;">
-        <button id="btnJump1" style="background: #2196F3;">SARE (Dino 1)</button>
-        <button id="btnJump2" style="background: #9c27b0;">SARE (Dino 2 / Multiplayer)</button>
+        <h2>DinoRun - Controler & Router</h2>
+        
+        <!-- Status Conexiune Placă -->
+        <div class="box">
+            <p>Placă BroOS: <span id="connStatus" style="color:red; font-weight:bold;">Deconectat</span></p>
+            <button id="connectBtn" style="background:#4CAF50;">Conectare Placă Serială</button>
+        </div>
+
+        <!-- Selector Mod de Joc -->
+        <div class="box">
+            <h3>Alege Modul de Joc</h3>
+            <button id="btnLocal" style="background: #2196F3;">Mod Local (1 singur BroOS)</button>
+            <button id="btnOnline" style="background: #9c27b0;">Mod Online (2 BroOS + Laptop Router)</button>
+        </div>
+
+        <!-- Panou Online (Ascuns implicit) -->
+        <div id="onlinePanel" class="box" style="display: none; border: 1px dashed #9c27b0;">
+            <h3>Sincronizare Online (Router)</h3>
+            <p>Status Rețea: <span id="wsStatus" style="color:orange;">Neconectat la cameră</span></p>
+            <input type="text" id="roomInput" placeholder="Nume Cameră (ex: BroRoom123)">
+            <button id="joinRoomBtn" style="background: #00bcd4;">Conectare în Cameră</button>
+            <p style="font-size: 12px; color: #aaa; margin-top: 8px;">
+                💡 <b>Cum funcționează:</b> Ambele laptopuri introduc același nume de cameră. Când tu sari pe BroOS-ul tău, celălalt BroOS va sari automat prin internet!
+            </p>
+        </div>
+
+        <hr style="border-color: #444; margin: 15px 0;">
+        <button id="btnJump1" style="background: #2196F3; font-size: 18px; padding: 15px;">SARE MANUAL (Test)</button>
     </div>
 
     <script>
         let port = null;
         let writer = null;
+        let reader = null;
+        let keepReading = false;
+        let ws = null;
+        let isOnlineMode = false;
 
+        // 1. Conexiune Web Serial cu placa Arduino
         document.getElementById('connectBtn').addEventListener('click', async () => {
             try {
                 port = await navigator.serial.requestPort();
                 await port.open({ baudRate: 115200 });
                 writer = port.writable.getWriter();
+                
                 document.getElementById('connStatus').innerText = "Conectat";
                 document.getElementById('connStatus').style.color = "#4CAF50";
+
+                keepReading = true;
+                readSerialLoop();
             } catch (err) {
-                alert("Eroare conectare: " + err);
+                alert("Eroare conectare serială: " + err);
             }
         });
 
-        async function sendCmd(cmd) {
-            if (!writer) {
-                alert("Conectează mai întâi placa Arduino!");
+        // 2. Ascultă ce trimite placa ta BroOS prin USB (când apeși joystick-ul în sus)
+        async function readSerialLoop() {
+            while (port && port.readable && keepReading) {
+                const textDecoder = new TextDecoderStream();
+                const readableStreamClosed = port.readable.pipeTo(textDecoder.writable);
+                reader = textDecoder.readable.getReader();
+                try {
+                    let buffer = "";
+                    while (true) {
+                        const { value, done } = await reader.read();
+                        if (done) break;
+                        if (value) {
+                            buffer += value;
+                            let lines = buffer.split('\n');
+                            buffer = lines.pop();
+                            for (let line of lines) {
+                                handleArduinoCommand(line.trim());
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.error("Eroare citire serială:", error);
+                } finally {
+                    reader.releaseLock();
+                }
+            }
+        }
+
+        function handleArduinoCommand(cmd) {
+            console.log("Primit de la BroOS:", cmd);
+            // Dacă ai sărit pe placa ta și suntem în mod online, trimitem comanda prin routerul web către celălalt player
+            if (cmd === "DINO:JUMP") {
+                if (isOnlineMode && ws && ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({ type: "DINO_JUMP" }));
+                    console.log("Comandă de salt trimisă prin routerul web spre celălalt laptop.");
+                }
+            }
+        }
+
+        // 3. Comutare Moduri
+        document.getElementById('btnLocal').addEventListener('click', () => {
+            isOnlineMode = false;
+            document.getElementById('onlinePanel').style.display = 'none';
+            alert("Mod Local activat! (Multiplayer local pe o singură placă)");
+        });
+
+        document.getElementById('btnOnline').addEventListener('click', () => {
+            isOnlineMode = true;
+            document.getElementById('onlinePanel').style.display = 'block';
+        });
+
+        // 4. Conectare la Rețeaua/Camera WebSocket (Routerul între cele 2 laptopuri)
+        document.getElementById('joinRoomBtn').addEventListener('click', () => {
+            let roomName = document.getElementById('roomInput').value.trim();
+            if (!roomName) {
+                alert("Te rog introdu un nume de cameră!");
                 return;
             }
+
+            // Folosim un server public de test WebSocket pentru a routeriza mesajele între cele 2 browsere
+            let wsUrl = `wss://socketsbay.com/wss/v2/2/demo_${roomName}/`;
+
+            try {
+                ws = new WebSocket(wsUrl);
+
+                ws.onopen = () => {
+                    document.getElementById('wsStatus').innerText = "Conectat la routerul online!";
+                    document.getElementById('wsStatus').style.color = "#4CAF50";
+                };
+
+                ws.onmessage = async (event) => {
+                    let data;
+                    try {
+                        data = JSON.parse(event.data);
+                    } catch(e) {
+                        data = { type: event.data };
+                    }
+
+                    // Când celălalt jucător a sărit pe BroOS-ul lui, comanda ajunge aici prin router
+                    if (data.type === "DINO_JUMP") {
+                        console.log("Salt primit de la celălalt jucător online! Trimit spre Arduino.");
+                        await sendToArduino("NET_IN:DINO2_JUMP");
+                    }
+                };
+
+                ws.onerror = (err) => {
+                    console.error("Eroare router WebSocket:", err);
+                    document.getElementById('wsStatus').innerText = "Eroare rețea";
+                    document.getElementById('wsStatus').style.color = "red";
+                };
+            } catch(e) {
+                alert("Eroare la conectare: " + e);
+            }
+        });
+
+        async function sendToArduino(cmd) {
+            if (!writer) return;
             const encoder = new TextEncoder();
             await writer.write(encoder.encode(cmd + "\n"));
         }
 
-        document.getElementById('btnJump1').addEventListener('click', () => sendCmd("DINO:JUMP"));
-        document.getElementById('btnJump2').addEventListener('click', () => sendCmd("NET_IN:DINO2_JUMP"));
+        document.getElementById('btnJump1').addEventListener('click', async () => {
+            await sendToArduino("DINO:JUMP");
+        });
     </script>
 </body>
 </html>
