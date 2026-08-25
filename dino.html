@@ -34,12 +34,12 @@
 
         <!-- Panou Online -->
         <div id="onlinePanel" class="box" style="display: none; border: 1px dashed #9c27b0;">
-            <h3>Sincronizare Online (Router)</h3>
-            <p>Status Rețea: <span id="wsStatus" style="color:orange;">Neconectat la cameră</span></p>
+            <h3>Sincronizare Online (2 Jucători)</h3>
+            <p>Status Rețea: <span id="wsStatus" style="color:orange; font-weight:bold;">Neconectat</span></p>
             <input type="text" id="roomInput" placeholder="Nume Cameră (ex: BroRoom123)">
             <button id="joinRoomBtn" style="background: #00bcd4;">Conectare în Cameră</button>
             <p style="font-size: 12px; color: #aaa; margin-top: 8px;">
-                💡 Asigură-te că ambele laptopuri folosesc exact același nume de cameră.
+                💡 Ambele persoane trebuie să introducă exact același nume de cameră.
             </p>
         </div>
 
@@ -67,7 +67,6 @@
 
                 keepReading = true;
                 readSerialLoop();
-                alert("Placa BroOS a fost conectată cu succes!");
             } catch (err) {
                 alert("Eroare conectare serială: " + err);
             }
@@ -106,9 +105,7 @@
             if (cmd === "DINO:JUMP") {
                 if (isOnlineMode && ws && ws.readyState === WebSocket.OPEN) {
                     ws.send(JSON.stringify({ type: "DINO_JUMP" }));
-                    console.log("Comandă trimisă prin routerul web spre celălalt laptop.");
-                } else if (isOnlineMode) {
-                    console.warn("Nu ești conectat la o cameră online!");
+                    console.log("Comandă trimisă prin routerul web spre celălalt jucător.");
                 }
             }
         }
@@ -125,7 +122,7 @@
             document.getElementById('onlinePanel').style.display = 'block';
         });
 
-        // 4. Conectare WebSocket cu tratare robustă a erorilor
+        // 4. Conectare WebSocket (Router între cele 2 laptopuri)
         document.getElementById('joinRoomBtn').addEventListener('click', () => {
             let roomName = document.getElementById('roomInput').value.trim();
             if (!roomName) {
@@ -133,22 +130,23 @@
                 return;
             }
 
-            document.getElementById('wsStatus').innerText = "Se conectează...";
-            document.getElementById('wsStatus').style.color = "orange";
-
-            // Folosim un format stabil de endpoint pentru teste
-            let wsUrl = `wss://socketsbay.com/wss/v2/2/broos_${roomName}/`;
+            const statusEl = document.getElementById('wsStatus');
+            statusEl.innerText = "Se conectează...";
+            statusEl.style.color = "orange";
 
             if (ws) {
                 ws.close();
             }
 
+            // Folosim un server public de test WebSocket stabil
+            let wsUrl = `wss://socketsbay.com/wss/v2/2/broos_${roomName}/`;
+
             try {
                 ws = new WebSocket(wsUrl);
 
                 ws.onopen = () => {
-                    document.getElementById('wsStatus').innerText = "Conectat la routerul online!";
-                    document.getElementById('wsStatus').style.color = "#4CAF50";
+                    statusEl.innerText = "Conectat cu succes!";
+                    statusEl.style.color = "#4CAF50";
                 };
 
                 ws.onmessage = async (event) => {
@@ -160,42 +158,44 @@
                     }
 
                     if (data.type === "DINO_JUMP") {
-                        console.log("Salt primit de la celălalt jucător! Trimit spre Arduino.");
+                        console.log("Salt primit de la celălalt jucător online!");
                         await sendToArduino("NET_IN:DINO2_JUMP");
                     }
                 };
 
                 ws.onerror = (err) => {
                     console.error("Eroare WebSocket:", err);
-                    document.getElementById('wsStatus').innerText = "Eroare rețea (Server blocat/picat)";
-                    document.getElementById('wsStatus').style.color = "red";
+                    statusEl.innerText = "Eroare rețea / Conexiune blocată";
+                    statusEl.style.color = "red";
                 };
 
                 ws.onclose = () => {
                     console.log("Conexiunea WebSocket s-a închis.");
                 };
             } catch(e) {
-                alert("Eroare la crearea conexiunii: " + e);
-                document.getElementById('wsStatus').innerText = "Eroare rețea";
-                document.getElementById('wsStatus').style.color = "red";
+                statusEl.innerText = "Eroare de conexiune";
+                statusEl.style.color = "red";
             }
         });
 
         async function sendToArduino(cmd) {
             if (!writer) {
-                alert("Atenție: Placa BroOS nu este conectată! Apasă mai întâi pe 'Conectare Placă Serială'.");
+                alert("Conectează mai întâi placa BroOS!");
                 return;
             }
             try {
                 const encoder = new TextEncoder();
                 await writer.write(encoder.encode(cmd + "\n"));
             } catch (err) {
-                console.error("Eroare la scrierea pe placă:", err);
+                console.error("Eroare scriere placă:", err);
             }
         }
 
         document.getElementById('btnJump1').addEventListener('click', async () => {
             await sendToArduino("DINO:JUMP");
+            if (isOnlineMode && ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ type: "DINO_JUMP" }));
+            }
         });
     </script>
 </body>

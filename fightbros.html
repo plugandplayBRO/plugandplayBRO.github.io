@@ -35,7 +35,7 @@
         <!-- Panou Online -->
         <div id="onlinePanel" class="box" style="display: none; border: 1px dashed #9c27b0;">
             <h3>Cameră Online FightBros</h3>
-            <p>Status: <span id="wsStatus" style="color:orange;">Neconectat</span></p>
+            <p>Status Rețea: <span id="wsStatus" style="color:orange; font-weight:bold;">Neconectat</span></p>
             <input type="text" id="roomInput" placeholder="Nume Cameră (ex: FightRoom1)">
             <button id="joinRoomBtn" style="background: #00bcd4; width: 100%; margin-top: 5px;">Conectare în Cameră</button>
         </div>
@@ -108,7 +108,6 @@
 
         function handleArduinoCommand(cmd) {
             if (isOnlineMode && ws && ws.readyState === WebSocket.OPEN) {
-                // Trimite acțiunea ta prin routerul web către adversar
                 ws.send(JSON.stringify({ type: "FIGHT_ACTION", action: cmd }));
             }
         }
@@ -128,23 +127,33 @@
             let roomName = document.getElementById('roomInput').value.trim();
             if (!roomName) { alert("Introdu camera!"); return; }
 
+            const statusEl = document.getElementById('wsStatus');
+            statusEl.innerText = "Se conectează...";
+            statusEl.style.color = "orange";
+
+            if (ws) { ws.close(); }
+
             let wsUrl = `wss://socketsbay.com/wss/v2/2/fight_${roomName}/`;
             try {
                 ws = new WebSocket(wsUrl);
                 ws.onopen = () => {
-                    document.getElementById('wsStatus').innerText = "Conectat la router!";
-                    document.getElementById('wsStatus').style.color = "#4CAF50";
+                    statusEl.innerText = "Conectat la router!";
+                    statusEl.style.color = "#4CAF50";
                 };
                 ws.onmessage = async (event) => {
                     let data;
                     try { data = JSON.parse(event.data); } catch(e) { data = {}; }
                     if (data.type === "FIGHT_ACTION") {
-                        // Comanda primită de la adversar prin internet o poți trimite spre Arduino dacă e nevoie
                         await sendToArduino("OPP:" + data.action);
                     }
                 };
+                ws.onerror = () => {
+                    statusEl.innerText = "Eroare rețea";
+                    statusEl.style.color = "red";
+                };
             } catch(e) {
-                alert("Eroare rețea: " + e);
+                statusEl.innerText = "Eroare";
+                statusEl.style.color = "red";
             }
         });
 
@@ -153,12 +162,15 @@
                 alert("Conectează mai întâi placa Arduino!");
                 return;
             }
-            const encoder = new TextEncoder();
-            await writer.write(encoder.encode(cmd + "\n"));
-            
-            // Dacă e online, trimitem și prin WebSocket
-            if (isOnlineMode && ws && ws.readyState === WebSocket.OPEN) {
-                ws.send(JSON.stringify({ type: "FIGHT_ACTION", action: cmd }));
+            try {
+                const encoder = new TextEncoder();
+                await writer.write(encoder.encode(cmd + "\n"));
+                
+                if (isOnlineMode && ws && ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({ type: "FIGHT_ACTION", action: cmd }));
+                }
+            } catch (err) {
+                console.error("Eroare scriere:", err);
             }
         }
 
