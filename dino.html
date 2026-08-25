@@ -32,14 +32,14 @@
             <button id="btnOnline" style="background: #9c27b0;">Mod Online (2 BroOS + Laptop Router)</button>
         </div>
 
-        <!-- Panou Online (Ascuns implicit) -->
+        <!-- Panou Online -->
         <div id="onlinePanel" class="box" style="display: none; border: 1px dashed #9c27b0;">
             <h3>Sincronizare Online (Router)</h3>
             <p>Status Rețea: <span id="wsStatus" style="color:orange;">Neconectat la cameră</span></p>
             <input type="text" id="roomInput" placeholder="Nume Cameră (ex: BroRoom123)">
             <button id="joinRoomBtn" style="background: #00bcd4;">Conectare în Cameră</button>
             <p style="font-size: 12px; color: #aaa; margin-top: 8px;">
-                💡 <b>Cum funcționează:</b> Ambele laptopuri introduc același nume de cameră. Când tu sari pe BroOS-ul tău, celălalt BroOS va sari automat prin internet!
+                💡 Asigură-te că ambele laptopuri folosesc exact același nume de cameră.
             </p>
         </div>
 
@@ -67,12 +67,13 @@
 
                 keepReading = true;
                 readSerialLoop();
+                alert("Placa BroOS a fost conectată cu succes!");
             } catch (err) {
                 alert("Eroare conectare serială: " + err);
             }
         });
 
-        // 2. Ascultă ce trimite placa ta BroOS prin USB (când apeși joystick-ul în sus)
+        // 2. Citire date de la placă
         async function readSerialLoop() {
             while (port && port.readable && keepReading) {
                 const textDecoder = new TextDecoderStream();
@@ -102,20 +103,21 @@
 
         function handleArduinoCommand(cmd) {
             console.log("Primit de la BroOS:", cmd);
-            // Dacă ai sărit pe placa ta și suntem în mod online, trimitem comanda prin routerul web către celălalt player
             if (cmd === "DINO:JUMP") {
                 if (isOnlineMode && ws && ws.readyState === WebSocket.OPEN) {
                     ws.send(JSON.stringify({ type: "DINO_JUMP" }));
-                    console.log("Comandă de salt trimisă prin routerul web spre celălalt laptop.");
+                    console.log("Comandă trimisă prin routerul web spre celălalt laptop.");
+                } else if (isOnlineMode) {
+                    console.warn("Nu ești conectat la o cameră online!");
                 }
             }
         }
 
-        // 3. Comutare Moduri
+        // 3. Comutare moduri
         document.getElementById('btnLocal').addEventListener('click', () => {
             isOnlineMode = false;
             document.getElementById('onlinePanel').style.display = 'none';
-            alert("Mod Local activat! (Multiplayer local pe o singură placă)");
+            alert("Mod Local activat!");
         });
 
         document.getElementById('btnOnline').addEventListener('click', () => {
@@ -123,7 +125,7 @@
             document.getElementById('onlinePanel').style.display = 'block';
         });
 
-        // 4. Conectare la Rețeaua/Camera WebSocket (Routerul între cele 2 laptopuri)
+        // 4. Conectare WebSocket cu tratare robustă a erorilor
         document.getElementById('joinRoomBtn').addEventListener('click', () => {
             let roomName = document.getElementById('roomInput').value.trim();
             if (!roomName) {
@@ -131,8 +133,15 @@
                 return;
             }
 
-            // Folosim un server public de test WebSocket pentru a routeriza mesajele între cele 2 browsere
-            let wsUrl = `wss://socketsbay.com/wss/v2/2/demo_${roomName}/`;
+            document.getElementById('wsStatus').innerText = "Se conectează...";
+            document.getElementById('wsStatus').style.color = "orange";
+
+            // Folosim un format stabil de endpoint pentru teste
+            let wsUrl = `wss://socketsbay.com/wss/v2/2/broos_${roomName}/`;
+
+            if (ws) {
+                ws.close();
+            }
 
             try {
                 ws = new WebSocket(wsUrl);
@@ -150,27 +159,39 @@
                         data = { type: event.data };
                     }
 
-                    // Când celălalt jucător a sărit pe BroOS-ul lui, comanda ajunge aici prin router
                     if (data.type === "DINO_JUMP") {
-                        console.log("Salt primit de la celălalt jucător online! Trimit spre Arduino.");
+                        console.log("Salt primit de la celălalt jucător! Trimit spre Arduino.");
                         await sendToArduino("NET_IN:DINO2_JUMP");
                     }
                 };
 
                 ws.onerror = (err) => {
-                    console.error("Eroare router WebSocket:", err);
-                    document.getElementById('wsStatus').innerText = "Eroare rețea";
+                    console.error("Eroare WebSocket:", err);
+                    document.getElementById('wsStatus').innerText = "Eroare rețea (Server blocat/picat)";
                     document.getElementById('wsStatus').style.color = "red";
                 };
+
+                ws.onclose = () => {
+                    console.log("Conexiunea WebSocket s-a închis.");
+                };
             } catch(e) {
-                alert("Eroare la conectare: " + e);
+                alert("Eroare la crearea conexiunii: " + e);
+                document.getElementById('wsStatus').innerText = "Eroare rețea";
+                document.getElementById('wsStatus').style.color = "red";
             }
         });
 
         async function sendToArduino(cmd) {
-            if (!writer) return;
-            const encoder = new TextEncoder();
-            await writer.write(encoder.encode(cmd + "\n"));
+            if (!writer) {
+                alert("Atenție: Placa BroOS nu este conectată! Apasă mai întâi pe 'Conectare Placă Serială'.");
+                return;
+            }
+            try {
+                const encoder = new TextEncoder();
+                await writer.write(encoder.encode(cmd + "\n"));
+            } catch (err) {
+                console.error("Eroare la scrierea pe placă:", err);
+            }
         }
 
         document.getElementById('btnJump1').addEventListener('click', async () => {

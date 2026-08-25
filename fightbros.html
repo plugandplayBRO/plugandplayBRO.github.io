@@ -3,48 +3,148 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FightBros - Controler</title>
+    <title>FightBros - BroOS Router Online & Local</title>
     <style>
         body { font-family: Arial, sans-serif; background-color: #121212; color: #fff; text-align: center; padding: 20px; }
-        .container { max-width: 500px; margin: 0 auto; background: #1e1e1e; padding: 20px; border-radius: 10px; }
-        button { background: #ff9800; color: white; border: none; padding: 15px 20px; margin: 8px; border-radius: 8px; font-size: 18px; cursor: pointer; }
-        button:hover { background: #e68900; }
+        .container { max-width: 550px; margin: 0 auto; background: #1e1e1e; padding: 20px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+        button { background: #ff9800; color: white; border: none; padding: 12px 18px; margin: 6px; border-radius: 8px; font-size: 16px; cursor: pointer; }
+        .control-btn { width: 42%; font-size: 18px; padding: 15px; }
+        input { padding: 10px; margin: 5px; border-radius: 5px; border: none; background: #2d2d2d; color: #fff; width: 65%; font-size: 14px; }
+        .box { background: #2d2d2d; padding: 12px; border-radius: 8px; margin: 12px 0; text-align: left; }
         .back-btn { background: #555; display: inline-block; padding: 10px 15px; text-decoration: none; border-radius: 5px; color: white; margin-bottom: 15px; }
     </style>
 </head>
 <body>
     <div class="container">
         <a href="index.html" class="back-btn">&larr; Înapoi la Meniu</a>
-        <h2>FightBros Controler</h2>
-        <p>Status: <span id="connStatus" style="color:red; font-weight:bold;">Deconectat</span></p>
-        <button id="connectBtn" style="background:#4CAF50;">Conectare Placă</button>
-        <hr style="border-color: #444; margin: 20px 0;">
+        <h2>FightBros - Controler & Router</h2>
+        
+        <!-- Status Conexiune Placă -->
+        <div class="box">
+            <p>Placă BroOS: <span id="connStatus" style="color:red; font-weight:bold;">Deconectat</span></p>
+            <button id="connectBtn" style="background:#4CAF50; width: 100%;">Conectare Placă Serială</button>
+        </div>
+
+        <!-- Selector Mod de Joc -->
+        <div class="box">
+            <h3>Mod de Joc</h3>
+            <button id="btnLocal" style="background: #2196F3; width: 48%;">Local</button>
+            <button id="btnOnline" style="background: #9c27b0; width: 48%;">Online (Router)</button>
+        </div>
+
+        <!-- Panou Online -->
+        <div id="onlinePanel" class="box" style="display: none; border: 1px dashed #9c27b0;">
+            <h3>Cameră Online FightBros</h3>
+            <p>Status: <span id="wsStatus" style="color:orange;">Neconectat</span></p>
+            <input type="text" id="roomInput" placeholder="Nume Cameră (ex: FightRoom1)">
+            <button id="joinRoomBtn" style="background: #00bcd4; width: 100%; margin-top: 5px;">Conectare în Cameră</button>
+        </div>
+
+        <hr style="border-color: #444; margin: 15px 0;">
+
         <div>
-            <button id="btnLeft">&larr; Stânga</button>
-            <button id="btnRight">Dreapta &rarr;</button>
+            <button id="btnLeft" class="control-btn">&larr; Stânga</button>
+            <button id="btnRight" class="control-btn">Dreapta &rarr;</button>
         </div>
         <div>
-            <button id="btnJump" style="background: #2196F3;">Salt (Jump)</button>
-            <button id="btnAtk" style="background: #e91e63;">Atac</button>
+            <button id="btnJump" class="control-btn" style="background: #2196F3;">Salt (Jump)</button>
+            <button id="btnAtk" class="control-btn" style="background: #e91e63;">Atac</button>
         </div>
         <div>
-            <button id="btnSuper" style="background: #9c27b0; width: 80%;">SUPER ATTACK!</button>
+            <button id="btnSuper" style="background: #9c27b0; width: 88%; padding: 15px; font-size: 18px;">SUPER ATTACK!</button>
         </div>
     </div>
 
     <script>
         let port = null;
         let writer = null;
+        let reader = null;
+        let keepReading = false;
+        let ws = null;
+        let isOnlineMode = false;
 
         document.getElementById('connectBtn').addEventListener('click', async () => {
             try {
                 port = await navigator.serial.requestPort();
                 await port.open({ baudRate: 115200 });
                 writer = port.writable.getWriter();
+                
                 document.getElementById('connStatus').innerText = "Conectat";
                 document.getElementById('connStatus').style.color = "#4CAF50";
+
+                keepReading = true;
+                readSerialLoop();
             } catch (err) {
                 alert("Eroare conectare: " + err);
+            }
+        });
+
+        async function readSerialLoop() {
+            while (port && port.readable && keepReading) {
+                const textDecoder = new TextDecoderStream();
+                const readableStreamClosed = port.readable.pipeTo(textDecoder.writable);
+                reader = textDecoder.readable.getReader();
+                try {
+                    let buffer = "";
+                    while (true) {
+                        const { value, done } = await reader.read();
+                        if (done) break;
+                        if (value) {
+                            buffer += value;
+                            let lines = buffer.split('\n');
+                            buffer = lines.pop();
+                            for (let line of lines) {
+                                handleArduinoCommand(line.trim());
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.error("Eroare citire:", error);
+                } finally {
+                    reader.releaseLock();
+                }
+            }
+        }
+
+        function handleArduinoCommand(cmd) {
+            if (isOnlineMode && ws && ws.readyState === WebSocket.OPEN) {
+                // Trimite acțiunea ta prin routerul web către adversar
+                ws.send(JSON.stringify({ type: "FIGHT_ACTION", action: cmd }));
+            }
+        }
+
+        document.getElementById('btnLocal').addEventListener('click', () => {
+            isOnlineMode = false;
+            document.getElementById('onlinePanel').style.display = 'none';
+            alert("Mod Local activat!");
+        });
+
+        document.getElementById('btnOnline').addEventListener('click', () => {
+            isOnlineMode = true;
+            document.getElementById('onlinePanel').style.display = 'block';
+        });
+
+        document.getElementById('joinRoomBtn').addEventListener('click', () => {
+            let roomName = document.getElementById('roomInput').value.trim();
+            if (!roomName) { alert("Introdu camera!"); return; }
+
+            let wsUrl = `wss://socketsbay.com/wss/v2/2/fight_${roomName}/`;
+            try {
+                ws = new WebSocket(wsUrl);
+                ws.onopen = () => {
+                    document.getElementById('wsStatus').innerText = "Conectat la router!";
+                    document.getElementById('wsStatus').style.color = "#4CAF50";
+                };
+                ws.onmessage = async (event) => {
+                    let data;
+                    try { data = JSON.parse(event.data); } catch(e) { data = {}; }
+                    if (data.type === "FIGHT_ACTION") {
+                        // Comanda primită de la adversar prin internet o poți trimite spre Arduino dacă e nevoie
+                        await sendToArduino("OPP:" + data.action);
+                    }
+                };
+            } catch(e) {
+                alert("Eroare rețea: " + e);
             }
         });
 
@@ -55,6 +155,11 @@
             }
             const encoder = new TextEncoder();
             await writer.write(encoder.encode(cmd + "\n"));
+            
+            // Dacă e online, trimitem și prin WebSocket
+            if (isOnlineMode && ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ type: "FIGHT_ACTION", action: cmd }));
+            }
         }
 
         document.getElementById('btnLeft').addEventListener('click', () => sendCmd("P:LEFT"));
