@@ -4,77 +4,27 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BroOS - Panou Central</title>
-    <link rel="stylesheet" href="style.css">
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #121212;
-            color: #e0e0e0;
-            text-align: center;
-            margin: 0;
-            padding: 20px;
-        }
-        .container {
-            max-width: 600px;
-            margin: 0 auto;
-            background: #1e1e1e;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
-        }
-        .card {
-            background: #2d2d2d;
-            margin: 15px 0;
-            padding: 15px;
-            border-radius: 8px;
-        }
-        button, .btn-link {
-            background-color: #ff9800;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            margin: 5px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 16px;
-            text-decoration: none;
-            display: inline-block;
-        }
-        button:hover, .btn-link:hover {
-            background-color: #e68900;
-        }
-        #disconnectBtn {
-            background-color: #f44336;
-        }
-        #disconnectBtn:hover {
-            background-color: #d32f2f;
-        }
-        .grid-links {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            margin-top: 10px;
-        }
-        #statusText {
-            font-weight: bold;
-            color: #f44336;
-        }
+        body { font-family: Arial, sans-serif; background-color: #121212; color: #e0e0e0; text-align: center; margin: 0; padding: 20px; }
+        .container { max-width: 600px; margin: 0 auto; background: #1e1e1e; padding: 20px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+        .card { background: #2d2d2d; margin: 15px 0; padding: 15px; border-radius: 8px; }
+        button, .btn-link { background-color: #ff9800; color: white; border: none; padding: 10px 20px; margin: 5px; border-radius: 5px; cursor: pointer; font-size: 16px; text-decoration: none; display: inline-block; }
+        button:hover, .btn-link:hover { background-color: #e68900; }
+        #disconnectBtn { background-color: #f44336; }
+        #disconnectBtn:hover { background-color: #d32f2f; }
+        .grid-links { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+        #statusText { font-weight: bold; color: #f44336; }
     </style>
 </head>
 <body>
-
     <div class="container">
         <h1>BroOS Control Hub</h1>
-        
-        <!-- Secțiunea de Conexiune Serială -->
         <div class="card">
             <h3>Conexiune Placă Arduino</h3>
             <p>Status: <span id="statusText">Deconectat</span></p>
             <button id="connectBtn">Conectare Port Serial</button>
             <button id="disconnectBtn" style="display: none;">Deconectare</button>
         </div>
-
-        <!-- Secțiunea de Navigare către Aplicații -->
         <div class="card">
             <h3>Aplicații & Controlere</h3>
             <div class="grid-links">
@@ -85,44 +35,28 @@
             </div>
         </div>
     </div>
-
     <script>
         let serialPort = null;
         let writer = null;
-        let reader = null;
-        let keepReading = false;
-
         const connectBtn = document.getElementById('connectBtn');
         const disconnectBtn = document.getElementById('disconnectBtn');
         const statusText = document.getElementById('statusText');
 
-        // Funcție de conectare Web Serial
         connectBtn.addEventListener('click', async () => {
             try {
                 serialPort = await navigator.serial.requestPort();
                 await serialPort.open({ baudRate: 115200 });
-
                 statusText.innerText = "Conectat";
                 statusText.style.color = "#4CAF50";
                 connectBtn.style.display = "none";
                 disconnectBtn.style.display = "inline-block";
-
-                // Pornește citirea serială (dacă este nevoie în fundal)
-                keepReading = true;
-                readSerialLoop();
             } catch (error) {
                 console.error("Eroare la conectare:", error);
             }
         });
 
-        // Funcție de deconectare
         disconnectBtn.addEventListener('click', async () => {
-            keepReading = false;
             try {
-                if (reader) {
-                    await reader.cancel();
-                    reader = null;
-                }
                 if (serialPort) {
                     await serialPort.close();
                     serialPort = null;
@@ -130,33 +64,11 @@
             } catch (error) {
                 console.error("Eroare la deconectare:", error);
             }
-
             statusText.innerText = "Deconectat";
             statusText.style.color = "#f44336";
             connectBtn.style.display = "inline-block";
             disconnectBtn.style.display = "none";
         });
-
-        async function readSerialLoop() {
-            while (serialPort && serialPort.readable && keepReading) {
-                const textDecoder = new TextDecoderStream();
-                const readableStreamClosed = serialPort.readable.pipeTo(textDecoder.writable);
-                reader = textDecoder.readable.getReader();
-                try {
-                    while (true) {
-                        const { value, done } = await reader.read();
-                        if (done) break;
-                        if (value) {
-                            console.log("Primit de la Arduino:", value);
-                        }
-                    }
-                } catch (error) {
-                    console.error("Eroare citire:", error);
-                } finally {
-                    reader.releaseLock();
-                }
-            }
-        }
     </script>
 </body>
 </html>

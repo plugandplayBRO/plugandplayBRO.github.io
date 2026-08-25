@@ -5,63 +5,57 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BroOS - Galerie</title>
     <style>
-        body { background-color: #121212; color: #e0e0e0; font-family: sans-serif; text-align: center; padding: 20px; }
-        header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #333; padding-bottom: 10px; margin-bottom: 20px; }
-        button { background-color: #1e1e1e; color: #fff; border: 1px solid #444; padding: 15px 25px; border-radius: 6px; font-size: 16px; cursor: pointer; margin: 10px; }
-        button:hover { background-color: #333; }
-        .status { font-weight: bold; color: #ff5252; }
-        .status.connected { color: #4CAF50; }
-        .nav-back { display: inline-block; text-decoration: none; color: #fff; margin-bottom: 15px; float: left; }
+        body { font-family: Arial, sans-serif; background-color: #121212; color: #fff; text-align: center; padding: 20px; }
+        .container { max-width: 500px; margin: 0 auto; background: #1e1e1e; padding: 20px; border-radius: 10px; }
+        button { background: #ff9800; color: white; border: none; padding: 15px 20px; margin: 8px; border-radius: 8px; font-size: 16px; cursor: pointer; width: 45%; }
+        button:hover { background: #e68900; }
+        .full-btn { width: 92%; background: #2196F3; }
+        .full-btn:hover { background: #0b7dda; }
+        .back-btn { background: #555; display: inline-block; padding: 10px 15px; text-decoration: none; border-radius: 5px; color: white; margin-bottom: 15px; }
     </style>
 </head>
 <body>
-
-    <a href="index.html" class="nav-back">← Înapoi la Meniu</a>
-
-    <header>
-        <h1>Galerie & Pixel Art</h1>
+    <div class="container">
+        <a href="index.html" class="back-btn">&larr; Înapoi la Meniu</a>
+        <h2>Galerie & Pixel Art</h2>
+        <p>Status: <span id="connStatus" style="color:red; font-weight:bold;">Deconectat</span></p>
+        <button id="connectBtn" class="full-btn" style="background:#4CAF50;">Conectare Placă</button>
+        <hr style="border-color: #444; margin: 20px 0;">
+        <button id="btnMode" class="full-btn">Deschide Galerie pe LCD</button>
         <div>
-            <span id="statusText" class="status">Deconectat</span>
-            <button id="connectBtn" onclick="toggleConnection()">Conectare Arduino</button>
+            <button id="btnPrev">&larr; Anterior</button>
+            <button id="btnNext">Următor &rarr;</button>
         </div>
-    </header>
-
-    <p>Comută modul galerie direct pe ecranul LCD:</p>
-    <div style="margin-top: 30px;">
-        <button onclick="sendCmd('MODE:GALLERY')">📂 Deschide Galerie pe LCD</button>
-    </div>
-    <div style="margin-top: 20px;">
-        <button onclick="sendCmd('GAL:PREV')">⬅️ Fotografia Anterioară</button>
-        <button onclick="sendCmd('GAL:NEXT')">Fotografia Următoare ➡️</button>
     </div>
 
     <script>
-        let port, writer;
-        async function toggleConnection() {
-            if (port) {
-                await port.close(); port = null;
-                document.getElementById('statusText').innerText = "Deconectat";
-                document.getElementById('statusText').className = "status";
-                document.getElementById('connectBtn').innerText = "Deconectare";
-            } else {
-                try {
-                    port = await navigator.serial.requestPort();
-                    await port.open({ baudRate: 115200 });
-                    document.getElementById('statusText').innerText = "Conectat";
-                    document.getElementById('statusText').className = "status connected";
-                    document.getElementById('connectBtn').innerText = "Deconectare";
-                } catch (err) { console.error(err); }
+        let port = null;
+        let writer = null;
+
+        document.getElementById('connectBtn').addEventListener('click', async () => {
+            try {
+                port = await navigator.serial.requestPort();
+                await port.open({ baudRate: 115200 });
+                writer = port.writable.getWriter();
+                document.getElementById('connStatus').innerText = "Conectat";
+                document.getElementById('connStatus').style.color = "#4CAF50";
+            } catch (err) {
+                alert("Eroare conectare: " + err);
             }
+        });
+
+        async function sendCmd(cmd) {
+            if (!writer) {
+                alert("Conectează mai întâi placa Arduino!");
+                return;
+            }
+            const encoder = new TextEncoder();
+            await writer.write(encoder.encode(cmd + "\n"));
         }
 
-        async function sendCmd(data) {
-            if (!port) { alert("Conectează mai întâi Arduino!"); return; }
-            const textEncoder = new TextEncoderStream();
-            textEncoder.readable.pipeTo(port.writable);
-            writer = textEncoder.writable.getWriter();
-            await writer.write(data + "\n");
-            writer.releaseLock();
-        }
+        document.getElementById('btnMode').addEventListener('click', () => sendCmd("MODE:GALLERY"));
+        document.getElementById('btnPrev').addEventListener('click', () => sendCmd("GAL:PREV"));
+        document.getElementById('btnNext').addEventListener('click', () => sendCmd("GAL:NEXT"));
     </script>
 </body>
 </html>

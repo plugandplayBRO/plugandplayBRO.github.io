@@ -3,62 +3,53 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BroOS - DinoRun</title>
+    <title>DinoRun - Controler</title>
     <style>
-        body { background-color: #121212; color: #e0e0e0; font-family: sans-serif; text-align: center; padding: 20px; }
-        header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #333; padding-bottom: 10px; margin-bottom: 20px; }
-        button { background-color: #1e1e1e; color: #fff; border: 1px solid #444; padding: 20px 40px; border-radius: 8px; font-size: 18px; cursor: pointer; margin: 10px; }
-        button:hover { background-color: #333; border-color: #4CAF50; }
-        .status { font-weight: bold; color: #ff5252; }
-        .status.connected { color: #4CAF50; }
-        .nav-back { display: inline-block; text-decoration: none; color: #fff; margin-bottom: 15px; float: left; }
+        body { font-family: Arial, sans-serif; background-color: #121212; color: #fff; text-align: center; padding: 20px; }
+        .container { max-width: 500px; margin: 0 auto; background: #1e1e1e; padding: 20px; border-radius: 10px; }
+        button { background: #ff9800; color: white; border: none; padding: 20px; margin: 10px; border-radius: 8px; font-size: 20px; cursor: pointer; width: 80%; }
+        button:hover { background: #e68900; }
+        .back-btn { background: #555; display: inline-block; padding: 10px 15px; text-decoration: none; border-radius: 5px; color: white; margin-bottom: 15px; }
     </style>
 </head>
 <body>
-
-    <a href="index.html" class="nav-back">← Înapoi la Meniu</a>
-
-    <header>
-        <h1>DinoRun Controller</h1>
-        <div>
-            <span id="statusText" class="status">Deconectat</span>
-            <button id="connectBtn" onclick="toggleConnection()">Conectare Arduino</button>
-        </div>
-    </header>
-
-    <h2>Sari peste obstacole!</h2>
-    <div style="margin-top: 50px;">
-        <button onclick="sendCmd('DINO:JUMP')" style="font-size: 24px; background-color: #1b3b1b;">🦖 Salt Dino 1</button>
-        <button onclick="sendCmd('NET_IN:DINO2_JUMP')" style="font-size: 24px; background-color: #3b1b1b;">🦖 Salt Dino 2</button>
+    <div class="container">
+        <a href="index.html" class="back-btn">&larr; Înapoi la Meniu</a>
+        <h2>DinoRun Controler</h2>
+        <p>Status: <span id="connStatus" style="color:red; font-weight:bold;">Deconectat</span></p>
+        <button id="connectBtn" style="background:#4CAF50; padding: 12px; font-size: 16px;">Conectare Placă</button>
+        <hr style="border-color: #444; margin: 20px 0;">
+        <button id="btnJump1" style="background: #2196F3;">SARE (Dino 1)</button>
+        <button id="btnJump2" style="background: #9c27b0;">SARE (Dino 2 / Multiplayer)</button>
     </div>
 
     <script>
-        let port, writer;
-        async function toggleConnection() {
-            if (port) {
-                await port.close(); port = null;
-                document.getElementById('statusText').innerText = "Deconectat";
-                document.getElementById('statusText').className = "status";
-                document.getElementById('connectBtn').innerText = "Conectare Arduino";
-            } else {
-                try {
-                    port = await navigator.serial.requestPort();
-                    await port.open({ baudRate: 115200 });
-                    document.getElementById('statusText').innerText = "Conectat";
-                    document.getElementById('statusText').className = "status connected";
-                    document.getElementById('connectBtn').innerText = "Deconectare";
-                } catch (err) { console.error(err); }
+        let port = null;
+        let writer = null;
+
+        document.getElementById('connectBtn').addEventListener('click', async () => {
+            try {
+                port = await navigator.serial.requestPort();
+                await port.open({ baudRate: 115200 });
+                writer = port.writable.getWriter();
+                document.getElementById('connStatus').innerText = "Conectat";
+                document.getElementById('connStatus').style.color = "#4CAF50";
+            } catch (err) {
+                alert("Eroare conectare: " + err);
             }
+        });
+
+        async function sendCmd(cmd) {
+            if (!writer) {
+                alert("Conectează mai întâi placa Arduino!");
+                return;
+            }
+            const encoder = new TextEncoder();
+            await writer.write(encoder.encode(cmd + "\n"));
         }
 
-        async function sendCmd(data) {
-            if (!port) { alert("Conectează mai întâi Arduino!"); return; }
-            const textEncoder = new TextEncoderStream();
-            textEncoder.readable.pipeTo(port.writable);
-            writer = textEncoder.writable.getWriter();
-            await writer.write(data + "\n");
-            writer.releaseLock();
-        }
+        document.getElementById('btnJump1').addEventListener('click', () => sendCmd("DINO:JUMP"));
+        document.getElementById('btnJump2').addEventListener('click', () => sendCmd("NET_IN:DINO2_JUMP"));
     </script>
 </body>
 </html>
