@@ -1,74 +1,90 @@
 <!DOCTYPE html>
-<html lang="ro">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BroOS - Panou Central</title>
-    <style>
-        body { font-family: Arial, sans-serif; background-color: #121212; color: #e0e0e0; text-align: center; margin: 0; padding: 20px; }
-        .container { max-width: 600px; margin: 0 auto; background: #1e1e1e; padding: 20px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
-        .card { background: #2d2d2d; margin: 15px 0; padding: 15px; border-radius: 8px; }
-        button, .btn-link { background-color: #ff9800; color: white; border: none; padding: 10px 20px; margin: 5px; border-radius: 5px; cursor: pointer; font-size: 16px; text-decoration: none; display: inline-block; }
-        button:hover, .btn-link:hover { background-color: #e68900; }
-        #disconnectBtn { background-color: #f44336; }
-        #disconnectBtn:hover { background-color: #d32f2f; }
-        .grid-links { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
-        #statusText { font-weight: bold; color: #f44336; }
-    </style>
+  <meta charset="UTF-8">
+  <title>PlugAndPlayBro Cloud IoT</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body { text-align: center; font-family: Arial, sans-serif; transition: background 0.5s; padding: 20px; color: #2c3e50; background-color: #f5f6fa; }
+    h1 { margin-bottom: 5px; }
+    h4 { color: #7f8c8d; margin-top: 0; margin-bottom: 25px; }
+    .btn { display: block; width: 85%; max-width: 320px; margin: 15px auto; padding: 18px; font-size: 20px; color: white; border-radius: 12px; border: none; cursor: pointer; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: transform 0.1s; }
+    .btn:active { transform: scale(0.97); }
+    .status-box { padding: 25px; margin: 20px auto; border: 3px solid #2ecc71; border-radius: 12px; max-width: 400px; font-size: 22px; font-weight: bold; background: white; box-shadow: 0 4px 8px rgba(0,0,0,0.05); }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <h1>BroOS Control Hub</h1>
-        <div class="card">
-            <h3>Conexiune Placă Arduino</h3>
-            <p>Status: <span id="statusText">Deconectat</span></p>
-            <button id="connectBtn">Conectare Port Serial</button>
-            <button id="disconnectBtn" style="display: none;">Deconectare</button>
-        </div>
-        <div class="card">
-            <h3>Aplicații & Controlere</h3>
-            <div class="grid-links">
-                <a href="fightbros.html" class="btn-link">FightBros</a>
-                <a href="dino.html" class="btn-link">DinoRun</a>
-                <a href="galery.html" class="btn-link">Galerie & Artă</a>
-                <a href="message.html" class="btn-link">Chat & Fișiere</a>
-            </div>
-        </div>
-    </div>
-    <script>
-        let serialPort = null;
-        let writer = null;
-        const connectBtn = document.getElementById('connectBtn');
-        const disconnectBtn = document.getElementById('disconnectBtn');
-        const statusText = document.getElementById('statusText');
 
-        connectBtn.addEventListener('click', async () => {
-            try {
-                serialPort = await navigator.serial.requestPort();
-                await serialPort.open({ baudRate: 115200 });
-                statusText.innerText = "Conectat";
-                statusText.style.color = "#4CAF50";
-                connectBtn.style.display = "none";
-                disconnectBtn.style.display = "inline-block";
-            } catch (error) {
-                console.error("Eroare la conectare:", error);
-            }
-        });
+  <h1>PlugAndPlayBro OS</h1>
+  <h4>Sistem de Securitate IoT v3</h4>
+  
+  <!-- Caseta de stare conectată prin satelit la ThingSpeak -->
+  <div id="statusBox" class="status-box">Se conectează la Cloud...</div>
 
-        disconnectBtn.addEventListener('click', async () => {
-            try {
-                if (serialPort) {
-                    await serialPort.close();
-                    serialPort = null;
-                }
-            } catch (error) {
-                console.error("Eroare la deconectare:", error);
-            }
-            statusText.innerText = "Deconectat";
-            statusText.style.color = "#f44336";
-            connectBtn.style.display = "inline-block";
-            disconnectBtn.style.display = "none";
-        });
-    </script>
+  <!-- BUTOANELE GLOBALE (Trimit comenzi de pe orice net) -->
+  <button onclick="trimiteComandaCloud(2)" class="btn" style="background-color: #34495e;">🔒 ARMEAZĂ ALARMA</button>
+  <button onclick="trimiteComandaCloud(3)" class="btn" style="background-color: #2ecc71;">💡 APRINDE LUMINA (SERVO)</button>
+  <button onclick="trimiteComandaCloud(0)" class="btn" style="background-color: #7f8c8d;">🔓 DEZARMEAZĂ / RESET</button>
+
+  <script>
+    // ===================================================
+    // COPIAZĂ ȘI PUNE AICI DATELE TALE EXACT DIN THINGSPEAK:
+    const CHANNEL_ID = "PUNE_AICI_CIFRELE_CHANNEL_ID"; 
+    const WRITE_API_KEY = "PUNE_AICI_WRITE_API_KEY_VERDE"; 
+    const READ_API_KEY = "PUNE_AICI_READ_API_KEY_NEAGRA"; 
+    // ===================================================
+
+    // Trimite numărul stării direct în baza de date ThingSpeak
+    function trimiteComandaCloud(valoare) {
+      const url = `https://thingspeak.com{WRITE_API_KEY}&field1=${valoare}`;
+      fetch(url)
+        .then(response => {
+          console.log("Comandă trimisă: " + valoare);
+        })
+        .catch(err => alert("Eroare de rețea: " + err));
+    }
+
+    // Verifică starea din 3 în 3 secunde pentru a actualiza ecranul telefonului
+    function verificaSistemCloud() {
+      const url = `https://thingspeak.com{CHANNEL_ID}/fields/1/last.json?api_key=${READ_API_KEY}`;
+      
+      fetch(url)
+        .then(res => res.json())
+        .then(data => {
+          const stare = parseInt(data.field1);
+          const statusBox = document.getElementById("statusBox");
+          
+          if (stare === 1) {
+            document.body.style.backgroundColor = "#c0392b"; // Alertă Intrus (Roșu)
+            document.body.style.color = "white";
+            statusBox.innerHTML = "🚨 INTRUS DETECTAT ÎN CAMERĂ!";
+            statusBox.style.borderColor = "white";
+            statusBox.style.color = "#c0392b";
+          } else if (stare === 2) {
+            document.body.style.backgroundColor = "#f39c12"; // Mod Pază (Portocaliu)
+            document.body.style.color = "white";
+            statusBox.innerHTML = "🔒 Alarma este ACTIVĂ (Pază)";
+            statusBox.style.borderColor = "white";
+            statusBox.style.color = "#f39c12";
+          } else if (stare === 3) {
+            document.body.style.backgroundColor = "#2ecc71"; // Motor în funcțiune (Verde)
+            document.body.style.color = "white";
+            statusBox.innerHTML = "💡 Lumina este APRINSĂ (Servo)";
+            statusBox.style.borderColor = "white";
+            statusBox.style.color = "#2ecc71";
+          } else {
+            document.body.style.backgroundColor = "#f5f6fa"; // Mod dezarmat normal
+            document.body.style.color = "#2c3e50";
+            statusBox.innerHTML = "✅ Alarma este OPRITĂ (Sigur)";
+            statusBox.style.borderColor = "#2ecc71";
+            statusBox.style.color = "#2ecc71";
+          }
+        })
+        .catch(err => console.log("Se așteaptă date..."));
+    }
+
+    setInterval(verificaSistemCloud, 3000);
+    verificaSistemCloud();
+  </script>
 </body>
 </html>
